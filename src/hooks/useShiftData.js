@@ -145,17 +145,59 @@ function reducer(state, action) {
 
 export function useShiftData() {
   const [storageOK, setStorageOK] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  // Lazy initial state: load from storage, or fall back to the example roster.
-  const [state, dispatch] = useReducer(reducer, undefined, () => {
-    const loaded = loadData();
-    return normalize(loaded || exampleData());
-  });
+  // Start with a usable fallback immediately, then replace it with Supabase data.
+  const [state, dispatch] = useReducer(reducer, undefined, () =>
+    normalize(exampleData())
+  );
 
-  // Persist on every change.
+  // Load the shared board once when the app starts.
   useEffect(() => {
-    if (!saveData(state)) setStorageOK(false);
-  }, [state]);
+    let cancelled = false;
+
+    async function hydrate() {
+      try {
+        const loaded = await loadData();
+        if (!cancelled) {
+          dispatch({ type: "LOAD_DATA", data: loaded || exampleData() });
+          setStorageOK(true);
+        }
+      } catch (error) {
+        console.warn("Could not load saved shift data.", error);
+        if (!cancelled) {
+          dispatch({ type: "LOAD_DATA", data: exampleData() });
+          setStorageOK(false);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist every change after the first shared load completes.
+  useEffect(() => {
+    if (loading) return;
+
+    let cancelled = false;
+
+    async function persist() {
+      const ok = await saveData(state);
+      if (!cancelled) setStorageOK(ok);
+    }
+
+    persist();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state, loading]);
 
   const actions = useMemo(
     () => ({
@@ -184,5 +226,5 @@ export function useShiftData() {
     [state.stations, state.team]
   );
 
-  return { data: state, actions, storageOK };
+  return { data: state, actions, storageOK, loading };
 }
