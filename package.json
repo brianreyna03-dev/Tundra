@@ -1,0 +1,22 @@
+{
+  "name": "tmmtx-unit-plant-shift-board",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11",
+    "caniuse-lite": "^1.0.30001799"
+  },
+  "description": "TMMTX Unit Plant shift coverage and certification board"
+}
