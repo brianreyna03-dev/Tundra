@@ -2,11 +2,14 @@ const STORAGE_KEY = "shift-board:v1";
 const BOARD_ID = "main";
 const TABLE_NAME = "shift_board";
 
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+const SUPABASE_URL = (
+  import.meta.env.VITE_SUPABASE_URL ||
+  "https://debcntlkbrbtcgsrjdhy.supabase.co"
+).replace(/\/$/, "");
 const SUPABASE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  "";
+  "sb_publishable_0z72yZyLPZ4TZwx-pmBSVQ_8mMxLOdL";
 
 function hasSupabase() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
@@ -100,3 +103,4 @@ export async function saveData(data) {
     return false;
   }
 }
+
