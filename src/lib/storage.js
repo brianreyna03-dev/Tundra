@@ -6,6 +6,7 @@ const SUPABASE_URL = (
   import.meta.env.VITE_SUPABASE_URL ||
   "https://debcntlkbrbtcgsrjdhy.supabase.co"
 ).replace(/\/$/, "");
+
 const SUPABASE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
@@ -50,13 +51,19 @@ async function request(path, options = {}) {
     },
   });
 
+  const text = await response.text().catch(() => "");
+
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
     throw new Error(`Supabase request failed (${response.status}): ${text}`);
   }
 
-  if (response.status === 204) return null;
-  return response.json();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 export async function loadData() {
@@ -69,12 +76,16 @@ export async function loadData() {
     );
 
     const remoteData = Array.isArray(rows) ? rows[0]?.data : rows?.data;
+
     if (remoteData) {
       localSave(remoteData);
       return remoteData;
     }
   } catch (error) {
-    console.warn("Could not load shared Supabase board. Falling back locally.", error);
+    console.warn(
+      "Could not load shared Supabase board. Falling back locally.",
+      error
+    );
   }
 
   return localLoad();
@@ -97,10 +108,10 @@ export async function saveData(data) {
         updated_at: new Date().toISOString(),
       }),
     });
+
     return true;
   } catch (error) {
     console.warn("Could not save shared Supabase board.", error);
     return false;
   }
 }
-
