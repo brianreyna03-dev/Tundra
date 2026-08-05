@@ -33,7 +33,7 @@ export default function TeamLeaderStrip({ team, compact = false }) {
 
           return (
             <div
-              className={`leader-slot${
+              className={`leader-slot leader-zone-${slot.key}${
                 leader ? " is-assigned" : ptoGap ? " is-pto-gap" : " is-open"
               }`}
               key={slot.key}
