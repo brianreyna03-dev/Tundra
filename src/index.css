@@ -2844,17 +2844,17 @@ main .manual-toggle.is-active {
 
 /* ============================================================
    Floor-map leadership zone color coordination
-   Zone 1 = soft blue, Zone 2A = muted rose, Zone 2B = warm sand, Zone 3 = sage green
+   Zone 1 = cyan, Zone 2A = magenta, Zone 2B = orange, Zone 3 = green
    ============================================================ */
 :root {
-  --zone-1: #a9cfe3;
-  --zone-1-dark: #356b83;
-  --zone-2a: #d9a7c0;
-  --zone-2a-dark: #7b4962;
-  --zone-2b: #e8b77f;
-  --zone-2b-dark: #7d5730;
-  --zone-3: #a9cfa1;
-  --zone-3-dark: #4b7447;
+  --zone-1: #45bfe6;
+  --zone-1-dark: #08647f;
+  --zone-2a: #ed008c;
+  --zone-2a-dark: #8d0054;
+  --zone-2b: #ff5a00;
+  --zone-2b-dark: #9a3500;
+  --zone-3: #19e600;
+  --zone-3-dark: #087900;
 }
 
 .leader-slot.leader-zone-zone1 {
