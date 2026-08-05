@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { nameFor, todayStr } from "../lib/util.js";
 import TeamLeaderStrip from "./TeamLeaderStrip.jsx";
+import AssignmentSelect from "./AssignmentSelect.jsx";
 
 const MAP_AREAS = {
   unit: { prefix: "st", count: 12 },
@@ -80,23 +81,16 @@ function firstEmptySlot(layout, area) {
   return null;
 }
 
-// Existing boards do not all use the same category labels. This mapper first
-// recognizes station codes/names, then category aliases, and finally uses the
-// existing station order as a safe legacy fallback so a populated board does
-// not render as entirely "Not configured."
 function buildAutoLayout(stations) {
   const layout = {};
   const used = new Set();
   const classified = [];
-  const unclassified = [];
 
   stations.forEach((station) => {
     const area = areaForStation(station);
     if (area) classified.push({ station, area });
-    else unclassified.push(station);
   });
 
-  // Pass 1: exact numbered names such as ST 4, SUB 2, or PM 1.
   classified.forEach(({ station, area }) => {
     const number = stationNumber(station, area);
     const spec = MAP_AREAS[area];
@@ -108,7 +102,6 @@ function buildAutoLayout(stations) {
     }
   });
 
-  // Pass 2: category/name-recognized processes without a usable number.
   classified.forEach(({ station, area }) => {
     if (used.has(station.id)) return;
     const key = firstEmptySlot(layout, area);
@@ -118,8 +111,6 @@ function buildAutoLayout(stations) {
     }
   });
 
-  // Pass 3: legacy boards sometimes stored every process under one generic
-  // category. Keep their original ordering: main line, sub line, then parts.
   const remaining = stations.filter((station) => !used.has(station.id));
   const fallbackOrder = [
     ...Array.from({ length: 12 }, (_, index) => `st${index + 1}`),
@@ -135,7 +126,16 @@ function buildAutoLayout(stations) {
   return layout;
 }
 
-function ProcessCell({ code, station, segment, team, kind = "station" }) {
+function ProcessCell({
+  code,
+  station,
+  segment,
+  stations,
+  team,
+  editing,
+  onAssign,
+  kind = "station",
+}) {
   if (kind === "blocked") {
     return (
       <div className="map-process map-process-blocked" aria-label={code}>
@@ -158,7 +158,10 @@ function ProcessCell({ code, station, segment, team, kind = "station" }) {
 
   if (!station) {
     return (
-      <div className="map-process map-process-unconfigured" aria-label={`${code}, open map location`}>
+      <div
+        className="map-process map-process-unconfigured"
+        aria-label={`${code}, open map location`}
+      >
         <span className="map-code">{code}</span>
         <span className="map-special-copy">Open map location</span>
       </div>
@@ -170,14 +173,27 @@ function ProcessCell({ code, station, segment, team, kind = "station" }) {
 
   return (
     <div
-      className={`map-process${personName ? " is-staffed" : " is-open"}`}
-      title={`${station.name}${personName ? ` — ${personName}` : " — Coverage required"}`}
+      className={`map-process${personName ? " is-staffed" : " is-open"}${
+        editing ? " is-editing" : ""
+      }`}
+      title={`${station.name}${
+        personName ? ` — ${personName}` : " — Coverage required"
+      }`}
     >
       <div className="map-process-topline">
         <span className="map-code">{code}</span>
         <span className="map-process-name">{station.name}</span>
       </div>
-      {personName ? (
+      {editing ? (
+        <AssignmentSelect
+          station={station}
+          segment={segment}
+          stations={stations}
+          team={team}
+          onAssign={onAssign}
+          compact
+        />
+      ) : personName ? (
         <div className="map-assignee">
           <span className="map-avatar" aria-hidden="true">
             {initialsOf(personName)}
@@ -191,11 +207,18 @@ function ProcessCell({ code, station, segment, team, kind = "station" }) {
   );
 }
 
-export default function MapView({ data, onGenerate }) {
+export default function MapView({
+  data,
+  onGenerate,
+  onStartManual,
+  onAssign,
+}) {
   const { stations, team, schedule } = data;
   const [segmentKey, setSegmentKey] = useState("q1");
+  const [manualMode, setManualMode] = useState(false);
   const segments = Array.isArray(schedule?.segments) ? schedule.segments : [];
-  const segment = segments.find((candidate) => candidate.key === segmentKey) || segments[0];
+  const segment =
+    segments.find((candidate) => candidate.key === segmentKey) || segments[0];
   const built = Boolean(segment);
 
   const autoLayout = useMemo(() => buildAutoLayout(stations), [stations]);
@@ -228,6 +251,14 @@ export default function MapView({ data, onGenerate }) {
     ? Object.values(segment.assign || {}).filter(Boolean).length
     : 0;
 
+  const processProps = {
+    segment,
+    stations,
+    team,
+    editing: manualMode,
+    onAssign,
+  };
+
   return (
     <>
       <div className="panel-head map-panel-head">
@@ -235,8 +266,8 @@ export default function MapView({ data, onGenerate }) {
           <span className="section-kicker">Quarter-by-Quarter Location Plan</span>
           <h2>Unit Plant Team Map</h2>
           <p>
-            Select a quarter to see the scheduled team member at every mapped
-            process location.
+            Select a quarter to view assignments, or turn on manual editing to
+            place team members directly into mapped stations.
           </p>
         </div>
         <div className="map-filter-card">
@@ -262,6 +293,17 @@ export default function MapView({ data, onGenerate }) {
               </option>
             ))}
           </select>
+          {built && (
+            <button
+              className={`btn ghost sm manual-toggle${
+                manualMode ? " is-active" : ""
+              }`}
+              type="button"
+              onClick={() => setManualMode((current) => !current)}
+            >
+              {manualMode ? "Done Editing" : "Edit Assignments"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -270,17 +312,43 @@ export default function MapView({ data, onGenerate }) {
       {!built ? (
         <div className="empty map-empty">
           <div className="empty-symbol">MAP</div>
-          <div className="big">Build coverage to populate the floor map</div>
+          <div className="big">Create a coverage plan to populate the floor map</div>
           <div>
-            The map uses the same certified quarter assignments as the coverage
-            board.
+            Build an automatic certified plan, or start blank and place team
+            members manually.
           </div>
-          <button className="gen map-build" onClick={onGenerate}>
-            Build Coverage
-          </button>
+          <div className="empty-actions">
+            <button
+              className="btn ghost"
+              type="button"
+              onClick={() => {
+                onStartManual();
+                setManualMode(true);
+              }}
+            >
+              Start Manual Plan
+            </button>
+            <button
+              className="gen map-build"
+              type="button"
+              onClick={onGenerate}
+            >
+              Build Coverage
+            </button>
+          </div>
         </div>
       ) : (
         <>
+          {manualMode && (
+            <div className="manual-edit-banner">
+              <strong>Manual assignment mode</strong>
+              <span>
+                Use the dropdown inside each mapped process. A person selected
+                elsewhere in this quarter will be moved here automatically.
+              </span>
+            </div>
+          )}
+
           <section className="map-statusbar" aria-label="Map status">
             <div>
               <span className="lbl">Showing</span>
@@ -300,19 +368,20 @@ export default function MapView({ data, onGenerate }) {
           </section>
 
           <div className="floor-map-shell">
-            <div className="floor-map" aria-label={`${segment.full} floor assignment map`}>
-              <section className="map-zone map-zone-parts" aria-label="Parts management area">
+            <div
+              className="floor-map"
+              aria-label={`${segment.full} floor assignment map`}
+            >
+              <section
+                className="map-zone map-zone-parts"
+                aria-label="Parts management area"
+              >
                 <div className="map-zone-label map-zone-label-parts">
                   <span>Parts Management</span>
                   <small>Material support</small>
                 </div>
                 {pmSlots.map((slot) => (
-                  <ProcessCell
-                    key={slot.code}
-                    {...slot}
-                    segment={segment}
-                    team={team}
-                  />
+                  <ProcessCell key={slot.code} {...slot} {...processProps} />
                 ))}
               </section>
 
@@ -320,20 +389,18 @@ export default function MapView({ data, onGenerate }) {
                 <span />
               </div>
 
-              <section className="map-zone map-zone-sub" aria-label="Sub line area">
+              <section
+                className="map-zone map-zone-sub"
+                aria-label="Sub line area"
+              >
                 <div className="map-zone-label map-zone-label-sub">
                   <span>Sub Line</span>
                   <small>Sub-assembly</small>
                 </div>
-                <ProcessCell {...subSlots[0]} segment={segment} team={team} />
+                <ProcessCell {...subSlots[0]} {...processProps} />
                 <ProcessCell code="Access" kind="blocked" />
                 {subSlots.slice(1).map((slot) => (
-                  <ProcessCell
-                    key={slot.code}
-                    {...slot}
-                    segment={segment}
-                    team={team}
-                  />
+                  <ProcessCell key={slot.code} {...slot} {...processProps} />
                 ))}
               </section>
 
@@ -341,7 +408,10 @@ export default function MapView({ data, onGenerate }) {
                 <span />
               </div>
 
-              <section className="map-zone map-zone-main" aria-label="Main line area">
+              <section
+                className="map-zone map-zone-main"
+                aria-label="Main line area"
+              >
                 <div className="map-zone-label map-zone-label-main">
                   <span>Main Line</span>
                   <small>Unit assembly</small>
@@ -349,20 +419,15 @@ export default function MapView({ data, onGenerate }) {
                 <div className="map-main-grid">
                   <div className="map-main-row map-main-top">
                     {mainTop.map((slot) => (
-                      <ProcessCell
-                        key={slot.code}
-                        {...slot}
-                        segment={segment}
-                        team={team}
-                      />
+                      <ProcessCell key={slot.code} {...slot} {...processProps} />
                     ))}
                   </div>
                   <div className="map-main-row map-main-bottom">
-                    <ProcessCell {...mainBottom[0]} segment={segment} team={team} />
-                    <ProcessCell {...mainBottom[1]} segment={segment} team={team} />
-                    <ProcessCell {...mainBottom[2]} segment={segment} team={team} />
+                    <ProcessCell {...mainBottom[0]} {...processProps} />
+                    <ProcessCell {...mainBottom[1]} {...processProps} />
+                    <ProcessCell {...mainBottom[2]} {...processProps} />
                     <ProcessCell code="Empty" kind="empty" />
-                    <ProcessCell {...mainBottom[3]} segment={segment} team={team} />
+                    <ProcessCell {...mainBottom[3]} {...processProps} />
                     <div className="map-buffer-span">
                       <ProcessCell code="Buffer" kind="buffer" />
                     </div>
@@ -400,11 +465,24 @@ export default function MapView({ data, onGenerate }) {
                   {additional.map((station) => {
                     const personId = segment.assign?.[station.id];
                     return (
-                      <div key={station.id}>
+                      <div key={station.id} className={manualMode ? "is-editing" : ""}>
                         <span>{station.name}</span>
-                        <strong>
-                          {personId ? nameFor(team, personId) : "Coverage required"}
-                        </strong>
+                        {manualMode ? (
+                          <AssignmentSelect
+                            station={station}
+                            segment={segment}
+                            stations={stations}
+                            team={team}
+                            onAssign={onAssign}
+                            compact
+                          />
+                        ) : (
+                          <strong>
+                            {personId
+                              ? nameFor(team, personId)
+                              : "Coverage required"}
+                          </strong>
+                        )}
                       </div>
                     );
                   })}
