@@ -26,12 +26,23 @@ export default function TeamLeaderStrip({ team, compact = false }) {
       <div className="leader-grid">
         {TL_ZONE_SLOTS.map((slot) => {
           const leader = leaderForSlot(team, slot.key);
+          const assignedLeader = leaderForSlot(team, slot.key, {
+            includePTO: true,
+          });
+          const ptoGap = !leader && Boolean(assignedLeader?.pto);
+
           return (
             <div
-              className={`leader-slot${leader ? " is-assigned" : " is-open"}`}
+              className={`leader-slot${
+                leader ? " is-assigned" : ptoGap ? " is-pto-gap" : " is-open"
+              }`}
               key={slot.key}
               aria-label={`${slot.label}, ${slot.position}, ${
-                leader ? leader.name : "unassigned"
+                leader
+                  ? leader.name
+                  : ptoGap
+                    ? "coverage needed because the assigned Team Leader is on PTO"
+                    : "unassigned"
               }`}
             >
               <div className="leader-zone-copy">
@@ -45,8 +56,13 @@ export default function TeamLeaderStrip({ team, compact = false }) {
                   </span>
                   <div>
                     <b>{leader.name}</b>
-                    <small>{leader.pto ? "PTO today" : "On shift"}</small>
+                    <small>On shift</small>
                   </div>
+                </div>
+              ) : ptoGap ? (
+                <div className="leader-coverage-gap">
+                  <b>Coverage needed</b>
+                  <small>Assigned TL is on PTO</small>
                 </div>
               ) : (
                 <span className="leader-unassigned">Unassigned</span>
