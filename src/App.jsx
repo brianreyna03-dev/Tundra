@@ -6,6 +6,7 @@ import BoardView from "./components/BoardView.jsx";
 import TeamView from "./components/TeamView.jsx";
 import StationsView from "./components/StationsView.jsx";
 import CoverageView from "./components/CoverageView.jsx";
+import MapView from "./components/MapView.jsx";
 
 export default function App() {
   const { data, actions, storageOK, loading } = useShiftData();
@@ -44,6 +45,9 @@ export default function App() {
 
         {tab === "board" && (
           <BoardView data={data} onGenerate={actions.generate} />
+        )}
+        {tab === "map" && (
+          <MapView data={data} onGenerate={actions.generate} />
         )}
         {tab === "team" && (
           <TeamView
