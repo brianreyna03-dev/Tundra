@@ -14,11 +14,10 @@
 //      the segment before it, then backfills any station still empty
 //    - anyone left over in a segment is listed as a floater (extra coverage)
 //
-//  Each call reshuffles the order, so pressing Generate again gives a fresh mix.
+//  Each automatic build reshuffles the order, so pressing Generate again gives
+//  a fresh mix. A blank manual plan can also be created and filled by hand.
 // ---------------------------------------------------------------------------
 
-// The staffed segments of the day, in order. Overtime is treated like a
-// quarter (same rules); change `full`/`label` here to relabel the board.
 export const SCHEDULE_SEGMENTS = [
   { key: "q1", label: "Q1", full: "1st Quarter" },
   { key: "q2", label: "Q2", full: "2nd Quarter" },
@@ -26,6 +25,37 @@ export const SCHEDULE_SEGMENTS = [
   { key: "q4", label: "Q4", full: "4th Quarter" },
   { key: "ot", label: "OT", full: "Overtime" },
 ];
+
+function activeProductionTeam(team) {
+  return team.filter((person) => !person.pto && person.role !== "tl");
+}
+
+function scheduleStats(stations, team) {
+  return {
+    nS: stations.length,
+    working: activeProductionTeam(team).length,
+    pto: team.filter((person) => person.pto).length,
+    leaders: team.filter((person) => !person.pto && person.role === "tl").length,
+  };
+}
+
+export function createEmptySchedule(stations, team) {
+  const active = activeProductionTeam(team);
+  const float = active.map((person) => person.id);
+
+  return {
+    generatedAt: Date.now(),
+    mode: "manual",
+    segments: SCHEDULE_SEGMENTS.map((segment) => ({
+      ...segment,
+      assign: Object.fromEntries(stations.map((station) => [station.id, null])),
+      float: [...float],
+      filled: 0,
+      manuallyEdited: false,
+    })),
+    stats: scheduleStats(stations, team),
+  };
+}
 
 // Fisher–Yates shuffle of [0..n-1].
 function shuffled(n) {
@@ -57,61 +87,76 @@ function tryAssign(st, matchP, visited, can, order) {
 }
 
 export function generateSchedule(stations, team) {
-  // Team leaders are reserved for their dedicated zone positions and are not
-  // placed on production processes or in the floater pool.
-  const active = team.filter((p) => !p.pto && p.role !== "tl");
-  const activeLeaders = team.filter((p) => !p.pto && p.role === "tl");
+  const active = activeProductionTeam(team);
   const nS = stations.length;
   const nP = active.length;
-  const ptoCount = team.filter((p) => p.pto).length;
 
-  // certification matrix: can[personIndex][stationIndex]
-  const can = active.map((p) => {
-    const certSet = new Set(p.certs);
-    return stations.map((s) => certSet.has(s.id));
+  const can = active.map((person) => {
+    const certSet = new Set(person.certs);
+    return stations.map((station) => certSet.has(station.id));
   });
 
   const segments = [];
-  let prevMatch = null; // person->station from the previous segment
+  let prevMatch = null;
 
   for (const seg of SCHEDULE_SEGMENTS) {
     const match = new Array(nP).fill(-1);
     const order = shuffled(nP);
 
     if (prevMatch) {
-      // Pass 1: prefer a station different from this person's previous segment.
-      const canDiff = active.map((_, pi) =>
-        stations.map((__, si) => can[pi][si] && prevMatch[pi] !== si)
+      const canDiff = active.map((_, personIndex) =>
+        stations.map(
+          (__, stationIndex) =>
+            can[personIndex][stationIndex] &&
+            prevMatch[personIndex] !== stationIndex
+        )
       );
-      for (let s = 0; s < nS; s++) {
-        tryAssign(s, match, new Array(nP).fill(false), canDiff, order);
+      for (let stationIndex = 0; stationIndex < nS; stationIndex++) {
+        tryAssign(
+          stationIndex,
+          match,
+          new Array(nP).fill(false),
+          canDiff,
+          order
+        );
       }
-      // Pass 2: any station still empty gets filled even if it means a repeat.
-      for (let s = 0; s < nS; s++) {
-        if (!match.includes(s)) {
-          tryAssign(s, match, new Array(nP).fill(false), can, order);
+      for (let stationIndex = 0; stationIndex < nS; stationIndex++) {
+        if (!match.includes(stationIndex)) {
+          tryAssign(
+            stationIndex,
+            match,
+            new Array(nP).fill(false),
+            can,
+            order
+          );
         }
       }
     } else {
-      // First segment: fill every station possible.
-      for (let s = 0; s < nS; s++) {
-        tryAssign(s, match, new Array(nP).fill(false), can, order);
+      for (let stationIndex = 0; stationIndex < nS; stationIndex++) {
+        tryAssign(
+          stationIndex,
+          match,
+          new Array(nP).fill(false),
+          can,
+          order
+        );
       }
     }
 
-    // invert person->station into station->personId
     const assign = {};
     const personByStation = new Array(nS).fill(null);
-    for (let p = 0; p < nP; p++) {
-      if (match[p] >= 0) personByStation[match[p]] = active[p].id;
+    for (let personIndex = 0; personIndex < nP; personIndex++) {
+      if (match[personIndex] >= 0) {
+        personByStation[match[personIndex]] = active[personIndex].id;
+      }
     }
-    stations.forEach((s, i) => {
-      assign[s.id] = personByStation[i];
+    stations.forEach((station, index) => {
+      assign[station.id] = personByStation[index];
     });
 
     const float = [];
-    active.forEach((p, i) => {
-      if (match[i] < 0) float.push(p.id);
+    active.forEach((person, index) => {
+      if (match[index] < 0) float.push(person.id);
     });
 
     segments.push({
@@ -121,6 +166,7 @@ export function generateSchedule(stations, team) {
       assign,
       float,
       filled: personByStation.filter(Boolean).length,
+      manuallyEdited: false,
     });
 
     prevMatch = match;
@@ -128,12 +174,8 @@ export function generateSchedule(stations, team) {
 
   return {
     generatedAt: Date.now(),
+    mode: "automatic",
     segments,
-    stats: {
-      nS,
-      working: nP,
-      pto: ptoCount,
-      leaders: activeLeaders.length,
-    },
+    stats: scheduleStats(stations, team),
   };
 }
