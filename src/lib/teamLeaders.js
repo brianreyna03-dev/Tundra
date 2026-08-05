@@ -11,9 +11,12 @@ export function isTeamLeader(person) {
   return person?.role === "tl";
 }
 
-export function leaderForSlot(team, slotKey) {
+export function leaderForSlot(team, slotKey, { includePTO = false } = {}) {
   return team.find(
-    (person) => isTeamLeader(person) && person.tlZone === slotKey
+    (person) =>
+      isTeamLeader(person) &&
+      person.tlZone === slotKey &&
+      (includePTO || !person.pto)
   );
 }
 
