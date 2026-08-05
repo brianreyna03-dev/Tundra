@@ -183,11 +183,14 @@ function ProcessCell({
   editing,
   onAssign,
   kind = "station",
+  zone,
 }) {
+  const zoneClass = zone ? ` map-zone-${zone}` : "";
+
   if (kind === "blocked") {
     return (
       <div
-        className="map-process map-process-blocked"
+        className={`map-process map-process-blocked${zoneClass}`}
         aria-label={code}
       >
         <span className="map-code">{code}</span>
@@ -199,25 +202,13 @@ function ProcessCell({
     );
   }
 
-  /*
-   * Special floor-map cells.
-   *
-   * These display only their supplied label:
-   * "Stairs" or "Kick Out".
-   *
-   * The inline textTransform prevents the existing
-   * .map-code CSS from changing them to uppercase.
-   */
-  if (kind === "empty" || kind === "buffer") {
+  if (kind === "buffer" || kind === "empty") {
     return (
       <div
-        className={`map-process map-process-${kind}`}
+        className={`map-process map-process-${kind}${zoneClass}`}
         aria-label={code}
       >
-        <span
-          className="map-code"
-          style={{ textTransform: "none" }}
-        >
+        <span className="map-code map-special-label">
           {code}
         </span>
       </div>
@@ -227,7 +218,7 @@ function ProcessCell({
   if (!station) {
     return (
       <div
-        className="map-process map-process-unconfigured"
+        className={`map-process map-process-unconfigured${zoneClass}`}
         aria-label={`${code}, open map location`}
       >
         <span className="map-code">{code}</span>
@@ -247,7 +238,7 @@ function ProcessCell({
 
   return (
     <div
-      className={`map-process${
+      className={`map-process${zoneClass}${
         personName ? " is-staffed" : " is-open"
       }${editing ? " is-editing" : ""}`}
       title={`${station.name}${
@@ -339,31 +330,63 @@ export default function MapView({
   const stationFor = (slotKey) =>
     stationById.get(autoLayout[slotKey]);
 
+  /*
+   * Zone 2A:
+   * PM 3 and PM 4
+   *
+   * Zone 2B:
+   * PM 1 and PM 2
+   */
   const pmSlots = [4, 3, 2, 1].map(
     (number) => ({
       code: `PM ${number}`,
       station: stationFor(`pm${number}`),
+      zone:
+        number >= 3 ? "zone2a" : "zone2b",
     })
   );
 
+  /*
+   * Zone 2A:
+   * Sub 6
+   *
+   * Zone 3:
+   * Sub 1 through Sub 5
+   */
   const subSlots = [6, 5, 4, 3, 2, 1].map(
     (number) => ({
       code: `Sub ${number}`,
       station: stationFor(`sub${number}`),
+      zone:
+        number === 6 ? "zone2a" : "zone3",
     })
   );
 
+  /*
+   * Zone 2A:
+   * ST 4 through ST 7
+   *
+   * Zone 2B:
+   * ST 8 through ST 11
+   */
   const mainTop = [
     4, 5, 6, 7, 8, 9, 10, 11,
   ].map((number) => ({
     code: `ST ${number}`,
     station: stationFor(`st${number}`),
+    zone:
+      number <= 7 ? "zone2a" : "zone2b",
   }));
 
+  /*
+   * Zone 1:
+   * ST 1, ST 2, ST 3 and ST 12
+   */
   const mainBottom = [3, 2, 1, 12].map(
     (number) => ({
       code: `ST ${number}`,
       station: stationFor(`st${number}`),
+      zone: "zone1",
     })
   );
 
@@ -715,6 +738,7 @@ export default function MapView({
                       <ProcessCell
                         code="Kick Out"
                         kind="buffer"
+                        zone="zone1"
                       />
                     </div>
                   </div>
