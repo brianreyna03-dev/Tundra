@@ -2384,6 +2384,11 @@ button:disabled {
   letter-spacing: 0.02em;
 }
 
+.map-special-label {
+  font-size: 11px;
+  text-transform: none;
+}
+
 .map-aisle {
   position: relative;
   height: 62px;
@@ -2833,5 +2838,127 @@ main .manual-toggle.is-active {
 
   .assignment-print-value {
     display: inline !important;
+  }
+}
+
+
+/* ============================================================
+   Floor-map leadership zone color coordination
+   Zone 1 = cyan, Zone 2A = magenta, Zone 2B = orange, Zone 3 = green
+   ============================================================ */
+:root {
+  --zone-1: #45bfe6;
+  --zone-1-dark: #08647f;
+  --zone-2a: #ed008c;
+  --zone-2a-dark: #8d0054;
+  --zone-2b: #ff5a00;
+  --zone-2b-dark: #9a3500;
+  --zone-3: #19e600;
+  --zone-3-dark: #087900;
+}
+
+.leader-slot.leader-zone-zone1 {
+  background: var(--zone-1);
+}
+
+.leader-slot.leader-zone-zone2a {
+  background: var(--zone-2a);
+}
+
+.leader-slot.leader-zone-zone2b {
+  background: var(--zone-2b);
+}
+
+.leader-slot.leader-zone-zone3 {
+  background: var(--zone-3);
+}
+
+.leader-slot.leader-zone-zone1 .leader-avatar {
+  border-color: var(--zone-1-dark);
+  background: var(--zone-1-dark);
+}
+
+.leader-slot.leader-zone-zone2a .leader-avatar {
+  border-color: var(--zone-2a-dark);
+  background: var(--zone-2a-dark);
+}
+
+.leader-slot.leader-zone-zone2b .leader-avatar {
+  border-color: var(--zone-2b-dark);
+  background: var(--zone-2b-dark);
+}
+
+.leader-slot.leader-zone-zone3 .leader-avatar {
+  border-color: var(--zone-3-dark);
+  background: var(--zone-3-dark);
+}
+
+.leader-slot[class*="leader-zone-"] .leader-zone-copy span,
+.leader-slot[class*="leader-zone-"] .leader-person small {
+  color: rgba(0, 0, 0, 0.68);
+}
+
+.map-process.map-zone-zone1 {
+  background: var(--zone-1);
+}
+
+.map-process.map-zone-zone2a {
+  background: var(--zone-2a);
+}
+
+.map-process.map-zone-zone2b {
+  background: var(--zone-2b);
+}
+
+.map-process.map-zone-zone3 {
+  background: var(--zone-3);
+}
+
+.map-process[class*="map-zone-zone"] .map-code,
+.map-process[class*="map-zone-zone"] .map-assignee strong,
+.map-process[class*="map-zone-zone"] .map-special-label {
+  color: #111417;
+}
+
+.map-process[class*="map-zone-zone"] .map-process-name {
+  color: rgba(0, 0, 0, 0.58);
+}
+
+.map-process.map-zone-zone1 .map-avatar {
+  border-color: var(--zone-1-dark);
+  background: var(--zone-1-dark);
+  color: #fff;
+}
+
+.map-process.map-zone-zone2a .map-avatar {
+  border-color: var(--zone-2a-dark);
+  background: var(--zone-2a-dark);
+  color: #fff;
+}
+
+.map-process.map-zone-zone2b .map-avatar {
+  border-color: var(--zone-2b-dark);
+  background: var(--zone-2b-dark);
+  color: #fff;
+}
+
+.map-process.map-zone-zone3 .map-avatar {
+  border-color: var(--zone-3-dark);
+  background: var(--zone-3-dark);
+  color: #fff;
+}
+
+.map-process[class*="map-zone-zone"] .map-uncovered {
+  border-left-color: rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.36);
+  color: #111417;
+}
+
+@media print {
+  .leader-slot,
+  .map-process,
+  .map-zone-label {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
