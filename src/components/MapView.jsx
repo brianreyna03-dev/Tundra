@@ -32,7 +32,11 @@ function areaForStation(station) {
   const name = cleanText(station.name);
   const text = `${category} ${name}`;
 
-  if (/\b(sub|subassembly|sub assembly|sub-line|sub line)\b/.test(text)) {
+  if (
+    /\b(sub|subassembly|sub assembly|sub-line|sub line)\b/.test(
+      text
+    )
+  ) {
     return "sub";
   }
 
@@ -44,7 +48,11 @@ function areaForStation(station) {
     return "material";
   }
 
-  if (/\b(unit|main|main line|unit assembly|station|st)\b/.test(text)) {
+  if (
+    /\b(unit|main|main line|unit assembly|station|st)\b/.test(
+      text
+    )
+  ) {
     return "unit";
   }
 
@@ -136,12 +144,23 @@ function buildAutoLayout(stations) {
     }
   });
 
-  const remaining = stations.filter((station) => !used.has(station.id));
+  const remaining = stations.filter(
+    (station) => !used.has(station.id)
+  );
 
   const fallbackOrder = [
-    ...Array.from({ length: 12 }, (_, index) => `st${index + 1}`),
-    ...Array.from({ length: 6 }, (_, index) => `sub${index + 1}`),
-    ...Array.from({ length: 4 }, (_, index) => `pm${index + 1}`),
+    ...Array.from(
+      { length: 12 },
+      (_, index) => `st${index + 1}`
+    ),
+    ...Array.from(
+      { length: 6 },
+      (_, index) => `sub${index + 1}`
+    ),
+    ...Array.from(
+      { length: 4 },
+      (_, index) => `pm${index + 1}`
+    ),
   ].filter((key) => !layout[key]);
 
   remaining.forEach((station, index) => {
@@ -167,22 +186,39 @@ function ProcessCell({
 }) {
   if (kind === "blocked") {
     return (
-      <div className="map-process map-process-blocked" aria-label={code}>
+      <div
+        className="map-process map-process-blocked"
+        aria-label={code}
+      >
         <span className="map-code">{code}</span>
-        <span className="map-special-copy">Restricted area</span>
+
+        <span className="map-special-copy">
+          Restricted area
+        </span>
       </div>
     );
   }
 
-  if (kind === "buffer" || kind === "empty") {
+  /*
+   * Special floor-map cells.
+   *
+   * These display only their supplied label:
+   * "Stairs" or "Kick Out".
+   *
+   * The inline textTransform prevents the existing
+   * .map-code CSS from changing them to uppercase.
+   */
+  if (kind === "empty" || kind === "buffer") {
     return (
-      <div className={`map-process map-process-${kind}`} aria-label={code}>
-        <span className="map-code">{code}</span>
-
-        <span className="map-special-copy">
-          {kind === "buffer"
-            ? "Open support space"
-            : "No assigned process"}
+      <div
+        className={`map-process map-process-${kind}`}
+        aria-label={code}
+      >
+        <span
+          className="map-code"
+          style={{ textTransform: "none" }}
+        >
+          {code}
         </span>
       </div>
     );
@@ -195,26 +231,37 @@ function ProcessCell({
         aria-label={`${code}, open map location`}
       >
         <span className="map-code">{code}</span>
-        <span className="map-special-copy">Open map location</span>
+
+        <span className="map-special-copy">
+          Open map location
+        </span>
       </div>
     );
   }
 
   const personId = segment?.assign?.[station.id];
-  const personName = personId ? nameFor(team, personId) : null;
+
+  const personName = personId
+    ? nameFor(team, personId)
+    : null;
 
   return (
     <div
-      className={`map-process${personName ? " is-staffed" : " is-open"}${
-        editing ? " is-editing" : ""
-      }`}
+      className={`map-process${
+        personName ? " is-staffed" : " is-open"
+      }${editing ? " is-editing" : ""}`}
       title={`${station.name}${
-        personName ? ` — ${personName}` : " — Coverage required"
+        personName
+          ? ` — ${personName}`
+          : " — Coverage required"
       }`}
     >
       <div className="map-process-topline">
         <span className="map-code">{code}</span>
-        <span className="map-process-name">{station.name}</span>
+
+        <span className="map-process-name">
+          {station.name}
+        </span>
       </div>
 
       {editing ? (
@@ -228,14 +275,19 @@ function ProcessCell({
         />
       ) : personName ? (
         <div className="map-assignee">
-          <span className="map-avatar" aria-hidden="true">
+          <span
+            className="map-avatar"
+            aria-hidden="true"
+          >
             {initialsOf(personName)}
           </span>
 
           <strong>{personName}</strong>
         </div>
       ) : (
-        <span className="map-uncovered">Coverage required</span>
+        <span className="map-uncovered">
+          Coverage required
+        </span>
       )}
     </div>
   );
@@ -249,16 +301,22 @@ export default function MapView({
 }) {
   const { stations, team, schedule } = data;
 
-  const [segmentKey, setSegmentKey] = useState("q1");
-  const [manualMode, setManualMode] = useState(false);
+  const [segmentKey, setSegmentKey] =
+    useState("q1");
 
-  const segments = Array.isArray(schedule?.segments)
+  const [manualMode, setManualMode] =
+    useState(false);
+
+  const segments = Array.isArray(
+    schedule?.segments
+  )
     ? schedule.segments
     : [];
 
   const segment =
-    segments.find((candidate) => candidate.key === segmentKey) ||
-    segments[0];
+    segments.find(
+      (candidate) => candidate.key === segmentKey
+    ) || segments[0];
 
   const built = Boolean(segment);
 
@@ -268,31 +326,46 @@ export default function MapView({
   );
 
   const stationById = useMemo(
-    () => new Map(stations.map((station) => [station.id, station])),
+    () =>
+      new Map(
+        stations.map((station) => [
+          station.id,
+          station,
+        ])
+      ),
     [stations]
   );
 
-  const stationFor = (slotKey) => stationById.get(autoLayout[slotKey]);
+  const stationFor = (slotKey) =>
+    stationById.get(autoLayout[slotKey]);
 
-  const pmSlots = [4, 3, 2, 1].map((number) => ({
-    code: `PM ${number}`,
-    station: stationFor(`pm${number}`),
-  }));
+  const pmSlots = [4, 3, 2, 1].map(
+    (number) => ({
+      code: `PM ${number}`,
+      station: stationFor(`pm${number}`),
+    })
+  );
 
-  const subSlots = [6, 5, 4, 3, 2, 1].map((number) => ({
-    code: `Sub ${number}`,
-    station: stationFor(`sub${number}`),
-  }));
+  const subSlots = [6, 5, 4, 3, 2, 1].map(
+    (number) => ({
+      code: `Sub ${number}`,
+      station: stationFor(`sub${number}`),
+    })
+  );
 
-  const mainTop = [4, 5, 6, 7, 8, 9, 10, 11].map((number) => ({
+  const mainTop = [
+    4, 5, 6, 7, 8, 9, 10, 11,
+  ].map((number) => ({
     code: `ST ${number}`,
     station: stationFor(`st${number}`),
   }));
 
-  const mainBottom = [3, 2, 1, 12].map((number) => ({
-    code: `ST ${number}`,
-    station: stationFor(`st${number}`),
-  }));
+  const mainBottom = [3, 2, 1, 12].map(
+    (number) => ({
+      code: `ST ${number}`,
+      station: stationFor(`st${number}`),
+    })
+  );
 
   const mappedIds = new Set(
     Object.values(autoLayout).filter(Boolean)
@@ -303,7 +376,9 @@ export default function MapView({
   );
 
   const filled = segment
-    ? Object.values(segment.assign || {}).filter(Boolean).length
+    ? Object.values(
+        segment.assign || {}
+      ).filter(Boolean).length
     : 0;
 
   const processProps = {
@@ -325,18 +400,23 @@ export default function MapView({
           <h2>Unit Plant Team Map</h2>
 
           <p>
-            Select a quarter to view assignments, or turn on manual
-            editing to place team members directly into mapped stations.
+            Select a quarter to view assignments,
+            or turn on manual editing to place team
+            members directly into mapped stations.
           </p>
         </div>
 
         <div className="map-filter-card">
-          <label htmlFor="quarter-filter">Quarter of day</label>
+          <label htmlFor="quarter-filter">
+            Quarter of day
+          </label>
 
           <select
             id="quarter-filter"
             value={segment?.key || segmentKey}
-            onChange={(event) => setSegmentKey(event.target.value)}
+            onChange={(event) =>
+              setSegmentKey(event.target.value)
+            }
             disabled={!built}
           >
             {(segments.length
@@ -369,7 +449,10 @@ export default function MapView({
                   },
                 ]
             ).map((option) => (
-              <option key={option.key} value={option.key}>
+              <option
+                key={option.key}
+                value={option.key}
+              >
                 {option.label} — {option.full}
               </option>
             ))}
@@ -382,7 +465,9 @@ export default function MapView({
               }`}
               type="button"
               onClick={() =>
-                setManualMode((current) => !current)
+                setManualMode(
+                  (current) => !current
+                )
               }
             >
               {manualMode
@@ -393,19 +478,26 @@ export default function MapView({
         </div>
       </div>
 
-      <TeamLeaderStrip team={team} compact />
+      <TeamLeaderStrip
+        team={team}
+        compact
+      />
 
       {!built ? (
         <div className="empty map-empty">
-          <div className="empty-symbol">MAP</div>
+          <div className="empty-symbol">
+            MAP
+          </div>
 
           <div className="big">
-            Create a coverage plan to populate the floor map
+            Create a coverage plan to populate
+            the floor map
           </div>
 
           <div>
-            Build an automatic certified plan, or start blank and
-            place team members manually.
+            Build an automatic certified plan,
+            or start blank and place team members
+            manually.
           </div>
 
           <div className="empty-actions">
@@ -433,11 +525,14 @@ export default function MapView({
         <>
           {manualMode && (
             <div className="manual-edit-banner">
-              <strong>Manual assignment mode</strong>
+              <strong>
+                Manual assignment mode
+              </strong>
 
               <span>
-                Use the dropdown inside each mapped process. A
-                person selected elsewhere in this quarter will be
+                Use the dropdown inside each
+                mapped process. A person selected
+                elsewhere in this quarter will be
                 moved here automatically.
               </span>
             </div>
@@ -448,23 +543,34 @@ export default function MapView({
             aria-label="Map status"
           >
             <div>
-              <span className="lbl">Showing</span>
+              <span className="lbl">
+                Showing
+              </span>
 
               <strong>
-                {segment.label} · {segment.full}
+                {segment.label} ·{" "}
+                {segment.full}
               </strong>
             </div>
 
             <div>
-              <span className="lbl">Date</span>
-              <strong>{todayStr()}</strong>
+              <span className="lbl">
+                Date
+              </span>
+
+              <strong>
+                {todayStr()}
+              </strong>
             </div>
 
             <div>
-              <span className="lbl">Mapped coverage</span>
+              <span className="lbl">
+                Mapped coverage
+              </span>
 
               <strong>
-                {filled}/{stations.length} processes staffed
+                {filled}/{stations.length}{" "}
+                processes staffed
               </strong>
             </div>
 
@@ -487,8 +593,13 @@ export default function MapView({
                 aria-label="Parts management area"
               >
                 <div className="map-zone-label map-zone-label-parts">
-                  <span>Parts Management</span>
-                  <small>Material support</small>
+                  <span>
+                    Parts Management
+                  </span>
+
+                  <small>
+                    Material support
+                  </small>
                 </div>
 
                 {pmSlots.map((slot) => (
@@ -512,8 +623,13 @@ export default function MapView({
                 aria-label="Sub line area"
               >
                 <div className="map-zone-label map-zone-label-sub">
-                  <span>Sub Line</span>
-                  <small>Sub-assembly</small>
+                  <span>
+                    Sub Line
+                  </span>
+
+                  <small>
+                    Sub-assembly
+                  </small>
                 </div>
 
                 <ProcessCell
@@ -526,13 +642,15 @@ export default function MapView({
                   kind="blocked"
                 />
 
-                {subSlots.slice(1).map((slot) => (
-                  <ProcessCell
-                    key={slot.code}
-                    {...slot}
-                    {...processProps}
-                  />
-                ))}
+                {subSlots
+                  .slice(1)
+                  .map((slot) => (
+                    <ProcessCell
+                      key={slot.code}
+                      {...slot}
+                      {...processProps}
+                    />
+                  ))}
               </section>
 
               <div
@@ -547,8 +665,13 @@ export default function MapView({
                 aria-label="Main line area"
               >
                 <div className="map-zone-label map-zone-label-main">
-                  <span>Main Line</span>
-                  <small>Unit assembly</small>
+                  <span>
+                    Main Line
+                  </span>
+
+                  <small>
+                    Unit assembly
+                  </small>
                 </div>
 
                 <div className="map-main-grid">
@@ -590,7 +713,7 @@ export default function MapView({
 
                     <div className="map-buffer-span">
                       <ProcessCell
-                        code="Kick out"
+                        code="Kick Out"
                         kind="buffer"
                       />
                     </div>
@@ -606,32 +729,43 @@ export default function MapView({
                 Unassigned &amp; Available
               </span>
 
-              <h3>{segment.label} Floaters</h3>
+              <h3>
+                {segment.label} Floaters
+              </h3>
 
               <div className="map-floater-list">
                 {segment.float?.length ? (
-                  segment.float.map((personId) => (
-                    <span
-                      className="memchip"
-                      key={personId}
-                    >
+                  segment.float.map(
+                    (personId) => (
                       <span
-                        className="mem-ini"
-                        aria-hidden="true"
+                        className="memchip"
+                        key={personId}
                       >
-                        {initialsOf(
-                          nameFor(team, personId)
-                        )}
-                      </span>
+                        <span
+                          className="mem-ini"
+                          aria-hidden="true"
+                        >
+                          {initialsOf(
+                            nameFor(
+                              team,
+                              personId
+                            )
+                          )}
+                        </span>
 
-                      <span className="mem-name">
-                        {nameFor(team, personId)}
+                        <span className="mem-name">
+                          {nameFor(
+                            team,
+                            personId
+                          )}
+                        </span>
                       </span>
-                    </span>
-                  ))
+                    )
+                  )
                 ) : (
                   <span className="map-none">
-                    All active members are assigned.
+                    All active members are
+                    assigned.
                   </span>
                 )}
               </div>
@@ -643,41 +777,58 @@ export default function MapView({
                   Outside Reference Layout
                 </span>
 
-                <h3>Additional Processes</h3>
+                <h3>
+                  Additional Processes
+                </h3>
 
                 <div className="map-additional-list">
-                  {additional.map((station) => {
-                    const personId =
-                      segment.assign?.[station.id];
+                  {additional.map(
+                    (station) => {
+                      const personId =
+                        segment.assign?.[
+                          station.id
+                        ];
 
-                    return (
-                      <div
-                        key={station.id}
-                        className={
-                          manualMode ? "is-editing" : ""
-                        }
-                      >
-                        <span>{station.name}</span>
+                      return (
+                        <div
+                          key={station.id}
+                          className={
+                            manualMode
+                              ? "is-editing"
+                              : ""
+                          }
+                        >
+                          <span>
+                            {station.name}
+                          </span>
 
-                        {manualMode ? (
-                          <AssignmentSelect
-                            station={station}
-                            segment={segment}
-                            stations={stations}
-                            team={team}
-                            onAssign={onAssign}
-                            compact
-                          />
-                        ) : (
-                          <strong>
-                            {personId
-                              ? nameFor(team, personId)
-                              : "Coverage required"}
-                          </strong>
-                        )}
-                      </div>
-                    );
-                  })}
+                          {manualMode ? (
+                            <AssignmentSelect
+                              station={station}
+                              segment={segment}
+                              stations={
+                                stations
+                              }
+                              team={team}
+                              onAssign={
+                                onAssign
+                              }
+                              compact
+                            />
+                          ) : (
+                            <strong>
+                              {personId
+                                ? nameFor(
+                                    team,
+                                    personId
+                                  )
+                                : "Coverage required"}
+                            </strong>
+                          )}
+                        </div>
+                      );
+                    }
+                  )}
                 </div>
               </div>
             )}
