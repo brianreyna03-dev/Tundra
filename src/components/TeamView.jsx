@@ -108,9 +108,10 @@ export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
       )}
 
       <p className="hint">
-        Team leaders stay out of automatic station assignments and appear in
-        their selected zone on the floor map. Open <b>Skills / Certs</b> to set
-        or change a TL zone. Set anyone to <b>PTO</b> to mark them out for today.
+        Team leaders stay out of automatic station assignments. Open
+        <b> Skills / Certs</b> to set or change a TL zone. A Team Leader marked
+        <b> PTO</b> keeps the saved zone assignment but is hidden from zone
+        coverage until returned to <b>On Shift</b>.
       </p>
     </>
   );
