@@ -3,10 +3,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 5173,
-  },
-  preview: {
-    port: 4173,
-  },
+
+  // Replace YOUR-REPOSITORY-NAME with the exact GitHub repository name.
+  base: "github.com/brianreyna03-dev/Tundra/",
 });
