@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { nameFor, todayStr } from "../lib/util.js";
 
-const MAP_LIMITS = {
-  "Unit Assembly": 12,
-  "Sub-Assembly": 6,
-  "Material Support": 4,
+const MAP_AREAS = {
+  unit: { prefix: "st", count: 12 },
+  sub: { prefix: "sub", count: 6 },
+  material: { prefix: "pm", count: 4 },
 };
 
 function initialsOf(name) {
@@ -15,6 +15,123 @@ function initialsOf(name) {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+}
+
+function cleanText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[_/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function areaForStation(station) {
+  const category = cleanText(station.category);
+  const name = cleanText(station.name);
+  const text = `${category} ${name}`;
+
+  if (/\b(sub|subassembly|sub assembly|sub-line|sub line)\b/.test(text)) {
+    return "sub";
+  }
+  if (
+    /\b(material|parts|part management|parts management|material support|material route|pm)\b/.test(
+      text
+    )
+  ) {
+    return "material";
+  }
+  if (/\b(unit|main|main line|unit assembly|station|st)\b/.test(text)) {
+    return "unit";
+  }
+  return null;
+}
+
+function stationNumber(station, area) {
+  const text = cleanText(station.name);
+  const patterns = {
+    unit: [
+      /\b(?:st|station|unit station|unit|main station|main)\s*[-#:]*\s*(\d{1,2})\b/,
+      /\b(\d{1,2})\s*(?:st|station)\b/,
+    ],
+    sub: [
+      /\b(?:sub|subassembly|sub assembly|sub-line|sub line)\s*[-#:]*\s*(\d{1,2})\b/,
+      /\b(\d{1,2})\s*(?:sub|subassembly|sub assembly)\b/,
+    ],
+    material: [
+      /\b(?:pm|material route|material support|parts management|parts|material)\s*[-#:]*\s*(\d{1,2})\b/,
+      /\b(\d{1,2})\s*(?:pm|material route|parts)\b/,
+    ],
+  };
+
+  for (const pattern of patterns[area] || []) {
+    const match = text.match(pattern);
+    if (match) return Number(match[1]);
+  }
+  return null;
+}
+
+function firstEmptySlot(layout, area) {
+  const { prefix, count } = MAP_AREAS[area];
+  for (let number = 1; number <= count; number++) {
+    const key = `${prefix}${number}`;
+    if (!layout[key]) return key;
+  }
+  return null;
+}
+
+// Existing boards do not all use the same category labels. This mapper first
+// recognizes station codes/names, then category aliases, and finally uses the
+// existing station order as a safe legacy fallback so a populated board does
+// not render as entirely "Not configured."
+function buildAutoLayout(stations) {
+  const layout = {};
+  const used = new Set();
+  const classified = [];
+  const unclassified = [];
+
+  stations.forEach((station) => {
+    const area = areaForStation(station);
+    if (area) classified.push({ station, area });
+    else unclassified.push(station);
+  });
+
+  // Pass 1: exact numbered names such as ST 4, SUB 2, or PM 1.
+  classified.forEach(({ station, area }) => {
+    const number = stationNumber(station, area);
+    const spec = MAP_AREAS[area];
+    if (!number || number < 1 || number > spec.count) return;
+    const key = `${spec.prefix}${number}`;
+    if (!layout[key]) {
+      layout[key] = station.id;
+      used.add(station.id);
+    }
+  });
+
+  // Pass 2: category/name-recognized processes without a usable number.
+  classified.forEach(({ station, area }) => {
+    if (used.has(station.id)) return;
+    const key = firstEmptySlot(layout, area);
+    if (key) {
+      layout[key] = station.id;
+      used.add(station.id);
+    }
+  });
+
+  // Pass 3: legacy boards sometimes stored every process under one generic
+  // category. Keep their original ordering: main line, sub line, then parts.
+  const remaining = stations.filter((station) => !used.has(station.id));
+  const fallbackOrder = [
+    ...Array.from({ length: 12 }, (_, index) => `st${index + 1}`),
+    ...Array.from({ length: 6 }, (_, index) => `sub${index + 1}`),
+    ...Array.from({ length: 4 }, (_, index) => `pm${index + 1}`),
+  ].filter((key) => !layout[key]);
+
+  remaining.forEach((station, index) => {
+    const key = fallbackOrder[index];
+    if (key) layout[key] = station.id;
+  });
+
+  return layout;
 }
 
 function ProcessCell({ code, station, segment, team, kind = "station" }) {
@@ -40,9 +157,9 @@ function ProcessCell({ code, station, segment, team, kind = "station" }) {
 
   if (!station) {
     return (
-      <div className="map-process map-process-unconfigured" aria-label={`${code}, not configured`}>
+      <div className="map-process map-process-unconfigured" aria-label={`${code}, open map location`}>
         <span className="map-code">{code}</span>
-        <span className="map-special-copy">Not configured</span>
+        <span className="map-special-copy">Open map location</span>
       </div>
     );
   }
@@ -80,39 +197,31 @@ export default function MapView({ data, onGenerate }) {
   const segment = segments.find((candidate) => candidate.key === segmentKey) || segments[0];
   const built = Boolean(segment);
 
-  const grouped = useMemo(
-    () => ({
-      unit: stations.filter((station) => station.category === "Unit Assembly"),
-      sub: stations.filter((station) => station.category === "Sub-Assembly"),
-      material: stations.filter((station) => station.category === "Material Support"),
-    }),
+  const autoLayout = useMemo(() => buildAutoLayout(stations), [stations]);
+  const stationById = useMemo(
+    () => new Map(stations.map((station) => [station.id, station])),
     [stations]
   );
+  const stationFor = (slotKey) => stationById.get(autoLayout[slotKey]);
 
   const pmSlots = [4, 3, 2, 1].map((number) => ({
     code: `PM ${number}`,
-    station: grouped.material[number - 1],
+    station: stationFor(`pm${number}`),
   }));
   const subSlots = [6, 5, 4, 3, 2, 1].map((number) => ({
     code: `Sub ${number}`,
-    station: grouped.sub[number - 1],
+    station: stationFor(`sub${number}`),
   }));
   const mainTop = [4, 5, 6, 7, 8, 9, 10, 11].map((number) => ({
     code: `ST ${number}`,
-    station: grouped.unit[number - 1],
+    station: stationFor(`st${number}`),
   }));
   const mainBottom = [3, 2, 1, 12].map((number) => ({
     code: `ST ${number}`,
-    station: grouped.unit[number - 1],
+    station: stationFor(`st${number}`),
   }));
 
-  const mappedIds = new Set(
-    [
-      ...grouped.unit.slice(0, MAP_LIMITS["Unit Assembly"]),
-      ...grouped.sub.slice(0, MAP_LIMITS["Sub-Assembly"]),
-      ...grouped.material.slice(0, MAP_LIMITS["Material Support"]),
-    ].map((station) => station.id)
-  );
+  const mappedIds = new Set(Object.values(autoLayout).filter(Boolean));
   const additional = stations.filter((station) => !mappedIds.has(station.id));
   const filled = segment
     ? Object.values(segment.assign || {}).filter(Boolean).length
