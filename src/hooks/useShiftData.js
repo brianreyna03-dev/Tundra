@@ -3,6 +3,7 @@ import { uid } from "../lib/util.js";
 import { loadData, saveData } from "../lib/storage.js";
 import { exampleData } from "../lib/example.js";
 import { generateSchedule } from "../lib/scheduler.js";
+import { TL_ZONE_KEYS, TL_ZONE_SLOTS } from "../lib/teamLeaders.js";
 
 // Coerce any loaded/imported object into a clean, well-formed state.
 // Certifications are pruned to stations that actually exist.
@@ -14,12 +15,31 @@ function normalize(d) {
     category: s.category || "Stations",
   }));
   const validIds = new Set(stations.map((s) => s.id));
-  const team = (data.team || []).map((p) => ({
-    id: p.id || uid(),
-    name: String(p.name ?? "Unnamed"),
-    pto: !!p.pto,
-    certs: Array.isArray(p.certs) ? p.certs.filter((c) => validIds.has(c)) : [],
-  }));
+  const usedLeaderZones = new Set();
+  const team = (data.team || []).map((p) => {
+    const wantsLeader = p.role === "tl" || p.isTL === true;
+    const requestedZone = TL_ZONE_KEYS.has(p.tlZone) ? p.tlZone : null;
+    const firstOpenZone = TL_ZONE_SLOTS.find(
+      (slot) => !usedLeaderZones.has(slot.key)
+    )?.key;
+    const tlZone = wantsLeader
+      ? requestedZone && !usedLeaderZones.has(requestedZone)
+        ? requestedZone
+        : firstOpenZone || null
+      : null;
+    const role = wantsLeader && tlZone ? "tl" : "member";
+    if (tlZone) usedLeaderZones.add(tlZone);
+    return {
+      id: p.id || uid(),
+      name: String(p.name ?? "Unnamed"),
+      pto: !!p.pto,
+      role,
+      tlZone,
+      certs: Array.isArray(p.certs)
+        ? p.certs.filter((c) => validIds.has(c))
+        : [],
+    };
+  });
   // Only keep a schedule that matches the current segment-based shape; an older
   // saved schedule (e.g. the previous two-half format) is dropped so it can be
   // rebuilt cleanly rather than rendered against the new board.
@@ -32,14 +52,38 @@ function normalize(d) {
 
 function reducer(state, action) {
   switch (action.type) {
-    case "ADD_PERSON":
+    case "ADD_PERSON": {
+      const occupied = new Set(
+        state.team
+          .filter((p) => p.role === "tl")
+          .map((p) => p.tlZone)
+          .filter(Boolean)
+      );
+      const requestedZone = TL_ZONE_KEYS.has(action.tlZone)
+        ? action.tlZone
+        : null;
+      const tlZone =
+        action.role === "tl" &&
+        requestedZone &&
+        !occupied.has(requestedZone)
+          ? requestedZone
+          : null;
       return {
         ...state,
+        schedule: null,
         team: [
           ...state.team,
-          { id: uid(), name: action.name, pto: false, certs: [] },
+          {
+            id: uid(),
+            name: action.name,
+            pto: false,
+            role: tlZone ? "tl" : "member",
+            tlZone,
+            certs: [],
+          },
         ],
       };
+    }
 
     case "REMOVE_PERSON":
       return { ...state, team: state.team.filter((p) => p.id !== action.id) };
@@ -59,6 +103,62 @@ function reducer(state, action) {
           p.id === action.id ? { ...p, pto: action.pto } : p
         ),
       };
+
+    case "SET_TEAM_ROLE": {
+      const nextRole = action.role === "tl" ? "tl" : "member";
+      const requestedZone = TL_ZONE_KEYS.has(action.tlZone)
+        ? action.tlZone
+        : null;
+      const occupied = new Set(
+        state.team
+          .filter((p) => p.id !== action.id && p.role === "tl")
+          .map((p) => p.tlZone)
+          .filter(Boolean)
+      );
+      const fallbackZone = TL_ZONE_SLOTS.find(
+        (slot) => !occupied.has(slot.key)
+      )?.key;
+      const nextZone =
+        nextRole === "tl"
+          ? requestedZone && !occupied.has(requestedZone)
+            ? requestedZone
+            : fallbackZone || null
+          : null;
+      return {
+        ...state,
+        schedule: null,
+        team: state.team.map((p) =>
+          p.id === action.id
+            ? {
+                ...p,
+                role: nextRole === "tl" && nextZone ? "tl" : "member",
+                tlZone: nextZone,
+              }
+            : p
+        ),
+      };
+    }
+
+    case "SET_TL_ZONE": {
+      const requestedZone = TL_ZONE_KEYS.has(action.tlZone)
+        ? action.tlZone
+        : null;
+      const occupied = state.team.some(
+        (p) =>
+          p.id !== action.id &&
+          p.role === "tl" &&
+          p.tlZone === requestedZone
+      );
+      if (requestedZone && occupied) return state;
+      return {
+        ...state,
+        team: state.team.map((p) =>
+          p.id === action.id && p.role === "tl"
+            ? { ...p, tlZone: requestedZone }
+            : p
+        ),
+      };
+    }
 
     case "TOGGLE_CERT":
       return {
@@ -201,10 +301,15 @@ export function useShiftData() {
 
   const actions = useMemo(
     () => ({
-      addPerson: (name) => dispatch({ type: "ADD_PERSON", name }),
+      addPerson: (name, role = "member", tlZone = null) =>
+        dispatch({ type: "ADD_PERSON", name, role, tlZone }),
       removePerson: (id) => dispatch({ type: "REMOVE_PERSON", id }),
       renamePerson: (id, name) => dispatch({ type: "RENAME_PERSON", id, name }),
       setPTO: (id, pto) => dispatch({ type: "SET_PTO", id, pto }),
+      setTeamRole: (id, role, tlZone = null) =>
+        dispatch({ type: "SET_TEAM_ROLE", id, role, tlZone }),
+      setTLZone: (id, tlZone) =>
+        dispatch({ type: "SET_TL_ZONE", id, tlZone }),
       toggleCert: (personId, stationId) =>
         dispatch({ type: "TOGGLE_CERT", personId, stationId }),
       setCategoryCerts: (personId, category, on) =>
