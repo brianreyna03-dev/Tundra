@@ -35,6 +35,7 @@ function areaForStation(station) {
   if (/\b(sub|subassembly|sub assembly|sub-line|sub line)\b/.test(text)) {
     return "sub";
   }
+
   if (
     /\b(material|parts|part management|parts management|material support|material route|pm)\b/.test(
       text
@@ -42,14 +43,17 @@ function areaForStation(station) {
   ) {
     return "material";
   }
+
   if (/\b(unit|main|main line|unit assembly|station|st)\b/.test(text)) {
     return "unit";
   }
+
   return null;
 }
 
 function stationNumber(station, area) {
   const text = cleanText(station.name);
+
   const patterns = {
     unit: [
       /\b(?:st|station|unit station|unit|main station|main)\s*[-#:]*\s*(\d{1,2})\b/,
@@ -67,17 +71,26 @@ function stationNumber(station, area) {
 
   for (const pattern of patterns[area] || []) {
     const match = text.match(pattern);
-    if (match) return Number(match[1]);
+
+    if (match) {
+      return Number(match[1]);
+    }
   }
+
   return null;
 }
 
 function firstEmptySlot(layout, area) {
   const { prefix, count } = MAP_AREAS[area];
+
   for (let number = 1; number <= count; number++) {
     const key = `${prefix}${number}`;
-    if (!layout[key]) return key;
+
+    if (!layout[key]) {
+      return key;
+    }
   }
+
   return null;
 }
 
@@ -88,14 +101,22 @@ function buildAutoLayout(stations) {
 
   stations.forEach((station) => {
     const area = areaForStation(station);
-    if (area) classified.push({ station, area });
+
+    if (area) {
+      classified.push({ station, area });
+    }
   });
 
   classified.forEach(({ station, area }) => {
     const number = stationNumber(station, area);
     const spec = MAP_AREAS[area];
-    if (!number || number < 1 || number > spec.count) return;
+
+    if (!number || number < 1 || number > spec.count) {
+      return;
+    }
+
     const key = `${spec.prefix}${number}`;
+
     if (!layout[key]) {
       layout[key] = station.id;
       used.add(station.id);
@@ -103,8 +124,12 @@ function buildAutoLayout(stations) {
   });
 
   classified.forEach(({ station, area }) => {
-    if (used.has(station.id)) return;
+    if (used.has(station.id)) {
+      return;
+    }
+
     const key = firstEmptySlot(layout, area);
+
     if (key) {
       layout[key] = station.id;
       used.add(station.id);
@@ -112,6 +137,7 @@ function buildAutoLayout(stations) {
   });
 
   const remaining = stations.filter((station) => !used.has(station.id));
+
   const fallbackOrder = [
     ...Array.from({ length: 12 }, (_, index) => `st${index + 1}`),
     ...Array.from({ length: 6 }, (_, index) => `sub${index + 1}`),
@@ -120,7 +146,10 @@ function buildAutoLayout(stations) {
 
   remaining.forEach((station, index) => {
     const key = fallbackOrder[index];
-    if (key) layout[key] = station.id;
+
+    if (key) {
+      layout[key] = station.id;
+    }
   });
 
   return layout;
@@ -149,8 +178,11 @@ function ProcessCell({
     return (
       <div className={`map-process map-process-${kind}`} aria-label={code}>
         <span className="map-code">{code}</span>
+
         <span className="map-special-copy">
-          {kind === "buffer" ? "Open support space" : "No assigned process"}
+          {kind === "buffer"
+            ? "Open support space"
+            : "No assigned process"}
         </span>
       </div>
     );
@@ -184,6 +216,7 @@ function ProcessCell({
         <span className="map-code">{code}</span>
         <span className="map-process-name">{station.name}</span>
       </div>
+
       {editing ? (
         <AssignmentSelect
           station={station}
@@ -198,6 +231,7 @@ function ProcessCell({
           <span className="map-avatar" aria-hidden="true">
             {initialsOf(personName)}
           </span>
+
           <strong>{personName}</strong>
         </div>
       ) : (
@@ -214,39 +248,60 @@ export default function MapView({
   onAssign,
 }) {
   const { stations, team, schedule } = data;
+
   const [segmentKey, setSegmentKey] = useState("q1");
   const [manualMode, setManualMode] = useState(false);
-  const segments = Array.isArray(schedule?.segments) ? schedule.segments : [];
+
+  const segments = Array.isArray(schedule?.segments)
+    ? schedule.segments
+    : [];
+
   const segment =
-    segments.find((candidate) => candidate.key === segmentKey) || segments[0];
+    segments.find((candidate) => candidate.key === segmentKey) ||
+    segments[0];
+
   const built = Boolean(segment);
 
-  const autoLayout = useMemo(() => buildAutoLayout(stations), [stations]);
+  const autoLayout = useMemo(
+    () => buildAutoLayout(stations),
+    [stations]
+  );
+
   const stationById = useMemo(
     () => new Map(stations.map((station) => [station.id, station])),
     [stations]
   );
+
   const stationFor = (slotKey) => stationById.get(autoLayout[slotKey]);
 
   const pmSlots = [4, 3, 2, 1].map((number) => ({
     code: `PM ${number}`,
     station: stationFor(`pm${number}`),
   }));
+
   const subSlots = [6, 5, 4, 3, 2, 1].map((number) => ({
     code: `Sub ${number}`,
     station: stationFor(`sub${number}`),
   }));
+
   const mainTop = [4, 5, 6, 7, 8, 9, 10, 11].map((number) => ({
     code: `ST ${number}`,
     station: stationFor(`st${number}`),
   }));
+
   const mainBottom = [3, 2, 1, 12].map((number) => ({
     code: `ST ${number}`,
     station: stationFor(`st${number}`),
   }));
 
-  const mappedIds = new Set(Object.values(autoLayout).filter(Boolean));
-  const additional = stations.filter((station) => !mappedIds.has(station.id));
+  const mappedIds = new Set(
+    Object.values(autoLayout).filter(Boolean)
+  );
+
+  const additional = stations.filter(
+    (station) => !mappedIds.has(station.id)
+  );
+
   const filled = segment
     ? Object.values(segment.assign || {}).filter(Boolean).length
     : 0;
@@ -263,15 +318,21 @@ export default function MapView({
     <>
       <div className="panel-head map-panel-head">
         <div>
-          <span className="section-kicker">Quarter-by-Quarter Location Plan</span>
+          <span className="section-kicker">
+            Quarter-by-Quarter Location Plan
+          </span>
+
           <h2>Unit Plant Team Map</h2>
+
           <p>
-            Select a quarter to view assignments, or turn on manual editing to
-            place team members directly into mapped stations.
+            Select a quarter to view assignments, or turn on manual
+            editing to place team members directly into mapped stations.
           </p>
         </div>
+
         <div className="map-filter-card">
           <label htmlFor="quarter-filter">Quarter of day</label>
+
           <select
             id="quarter-filter"
             value={segment?.key || segmentKey}
@@ -281,11 +342,31 @@ export default function MapView({
             {(segments.length
               ? segments
               : [
-                  { key: "q1", label: "Q1", full: "1st Quarter" },
-                  { key: "q2", label: "Q2", full: "2nd Quarter" },
-                  { key: "q3", label: "Q3", full: "3rd Quarter" },
-                  { key: "q4", label: "Q4", full: "4th Quarter" },
-                  { key: "ot", label: "OT", full: "Overtime" },
+                  {
+                    key: "q1",
+                    label: "Q1",
+                    full: "1st Quarter",
+                  },
+                  {
+                    key: "q2",
+                    label: "Q2",
+                    full: "2nd Quarter",
+                  },
+                  {
+                    key: "q3",
+                    label: "Q3",
+                    full: "3rd Quarter",
+                  },
+                  {
+                    key: "q4",
+                    label: "Q4",
+                    full: "4th Quarter",
+                  },
+                  {
+                    key: "ot",
+                    label: "OT",
+                    full: "Overtime",
+                  },
                 ]
             ).map((option) => (
               <option key={option.key} value={option.key}>
@@ -293,15 +374,20 @@ export default function MapView({
               </option>
             ))}
           </select>
+
           {built && (
             <button
               className={`btn ghost sm manual-toggle${
                 manualMode ? " is-active" : ""
               }`}
               type="button"
-              onClick={() => setManualMode((current) => !current)}
+              onClick={() =>
+                setManualMode((current) => !current)
+              }
             >
-              {manualMode ? "Done Editing" : "Edit Assignments"}
+              {manualMode
+                ? "Done Editing"
+                : "Edit Assignments"}
             </button>
           )}
         </div>
@@ -312,11 +398,16 @@ export default function MapView({
       {!built ? (
         <div className="empty map-empty">
           <div className="empty-symbol">MAP</div>
-          <div className="big">Create a coverage plan to populate the floor map</div>
-          <div>
-            Build an automatic certified plan, or start blank and place team
-            members manually.
+
+          <div className="big">
+            Create a coverage plan to populate the floor map
           </div>
+
+          <div>
+            Build an automatic certified plan, or start blank and
+            place team members manually.
+          </div>
+
           <div className="empty-actions">
             <button
               className="btn ghost"
@@ -328,6 +419,7 @@ export default function MapView({
             >
               Start Manual Plan
             </button>
+
             <button
               className="gen map-build"
               type="button"
@@ -342,27 +434,45 @@ export default function MapView({
           {manualMode && (
             <div className="manual-edit-banner">
               <strong>Manual assignment mode</strong>
+
               <span>
-                Use the dropdown inside each mapped process. A person selected
-                elsewhere in this quarter will be moved here automatically.
+                Use the dropdown inside each mapped process. A
+                person selected elsewhere in this quarter will be
+                moved here automatically.
               </span>
             </div>
           )}
 
-          <section className="map-statusbar" aria-label="Map status">
+          <section
+            className="map-statusbar"
+            aria-label="Map status"
+          >
             <div>
               <span className="lbl">Showing</span>
-              <strong>{segment.label} · {segment.full}</strong>
+
+              <strong>
+                {segment.label} · {segment.full}
+              </strong>
             </div>
+
             <div>
               <span className="lbl">Date</span>
               <strong>{todayStr()}</strong>
             </div>
+
             <div>
               <span className="lbl">Mapped coverage</span>
-              <strong>{filled}/{stations.length} processes staffed</strong>
+
+              <strong>
+                {filled}/{stations.length} processes staffed
+              </strong>
             </div>
-            <button className="btn ghost sm" onClick={() => window.print()}>
+
+            <button
+              className="btn ghost sm"
+              type="button"
+              onClick={() => window.print()}
+            >
               Print Map
             </button>
           </section>
@@ -380,12 +490,20 @@ export default function MapView({
                   <span>Parts Management</span>
                   <small>Material support</small>
                 </div>
+
                 {pmSlots.map((slot) => (
-                  <ProcessCell key={slot.code} {...slot} {...processProps} />
+                  <ProcessCell
+                    key={slot.code}
+                    {...slot}
+                    {...processProps}
+                  />
                 ))}
               </section>
 
-              <div className="map-aisle map-aisle-upper" aria-hidden="true">
+              <div
+                className="map-aisle map-aisle-upper"
+                aria-hidden="true"
+              >
                 <span />
               </div>
 
@@ -397,14 +515,30 @@ export default function MapView({
                   <span>Sub Line</span>
                   <small>Sub-assembly</small>
                 </div>
-                <ProcessCell {...subSlots[0]} {...processProps} />
-                <ProcessCell code="Access" kind="blocked" />
+
+                <ProcessCell
+                  {...subSlots[0]}
+                  {...processProps}
+                />
+
+                <ProcessCell
+                  code="Access"
+                  kind="blocked"
+                />
+
                 {subSlots.slice(1).map((slot) => (
-                  <ProcessCell key={slot.code} {...slot} {...processProps} />
+                  <ProcessCell
+                    key={slot.code}
+                    {...slot}
+                    {...processProps}
+                  />
                 ))}
               </section>
 
-              <div className="map-aisle map-aisle-main" aria-hidden="true">
+              <div
+                className="map-aisle map-aisle-main"
+                aria-hidden="true"
+              >
                 <span />
               </div>
 
@@ -416,20 +550,49 @@ export default function MapView({
                   <span>Main Line</span>
                   <small>Unit assembly</small>
                 </div>
+
                 <div className="map-main-grid">
                   <div className="map-main-row map-main-top">
                     {mainTop.map((slot) => (
-                      <ProcessCell key={slot.code} {...slot} {...processProps} />
+                      <ProcessCell
+                        key={slot.code}
+                        {...slot}
+                        {...processProps}
+                      />
                     ))}
                   </div>
+
                   <div className="map-main-row map-main-bottom">
-                    <ProcessCell {...mainBottom[0]} {...processProps} />
-                    <ProcessCell {...mainBottom[1]} {...processProps} />
-                    <ProcessCell {...mainBottom[2]} {...processProps} />
-                    <ProcessCell code="Empty" kind="empty" />
-                    <ProcessCell {...mainBottom[3]} {...processProps} />
+                    <ProcessCell
+                      {...mainBottom[0]}
+                      {...processProps}
+                    />
+
+                    <ProcessCell
+                      {...mainBottom[1]}
+                      {...processProps}
+                    />
+
+                    <ProcessCell
+                      {...mainBottom[2]}
+                      {...processProps}
+                    />
+
+                    <ProcessCell
+                      code="Stairs"
+                      kind="empty"
+                    />
+
+                    <ProcessCell
+                      {...mainBottom[3]}
+                      {...processProps}
+                    />
+
                     <div className="map-buffer-span">
-                      <ProcessCell code="Buffer" kind="buffer" />
+                      <ProcessCell
+                        code="Kick out"
+                        kind="buffer"
+                      />
                     </div>
                   </div>
                 </div>
@@ -439,34 +602,63 @@ export default function MapView({
 
           <section className="map-support-row">
             <div className="map-support-card">
-              <span className="section-kicker">Unassigned & Available</span>
+              <span className="section-kicker">
+                Unassigned &amp; Available
+              </span>
+
               <h3>{segment.label} Floaters</h3>
+
               <div className="map-floater-list">
                 {segment.float?.length ? (
                   segment.float.map((personId) => (
-                    <span className="memchip" key={personId}>
-                      <span className="mem-ini" aria-hidden="true">
-                        {initialsOf(nameFor(team, personId))}
+                    <span
+                      className="memchip"
+                      key={personId}
+                    >
+                      <span
+                        className="mem-ini"
+                        aria-hidden="true"
+                      >
+                        {initialsOf(
+                          nameFor(team, personId)
+                        )}
                       </span>
-                      <span className="mem-name">{nameFor(team, personId)}</span>
+
+                      <span className="mem-name">
+                        {nameFor(team, personId)}
+                      </span>
                     </span>
                   ))
                 ) : (
-                  <span className="map-none">All active members are assigned.</span>
+                  <span className="map-none">
+                    All active members are assigned.
+                  </span>
                 )}
               </div>
             </div>
 
             {additional.length > 0 && (
               <div className="map-support-card">
-                <span className="section-kicker">Outside Reference Layout</span>
+                <span className="section-kicker">
+                  Outside Reference Layout
+                </span>
+
                 <h3>Additional Processes</h3>
+
                 <div className="map-additional-list">
                   {additional.map((station) => {
-                    const personId = segment.assign?.[station.id];
+                    const personId =
+                      segment.assign?.[station.id];
+
                     return (
-                      <div key={station.id} className={manualMode ? "is-editing" : ""}>
+                      <div
+                        key={station.id}
+                        className={
+                          manualMode ? "is-editing" : ""
+                        }
+                      >
                         <span>{station.name}</span>
+
                         {manualMode ? (
                           <AssignmentSelect
                             station={station}
