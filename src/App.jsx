@@ -44,10 +44,20 @@ export default function App() {
         )}
 
         {tab === "board" && (
-          <BoardView data={data} onGenerate={actions.generate} />
+          <BoardView
+            data={data}
+            onGenerate={actions.generate}
+            onStartManual={actions.startManual}
+            onAssign={actions.assignPerson}
+          />
         )}
         {tab === "map" && (
-          <MapView data={data} onGenerate={actions.generate} />
+          <MapView
+            data={data}
+            onGenerate={actions.generate}
+            onStartManual={actions.startManual}
+            onAssign={actions.assignPerson}
+          />
         )}
         {tab === "team" && (
           <TeamView
@@ -73,3 +83,4 @@ export default function App() {
     </>
   );
 }
+
