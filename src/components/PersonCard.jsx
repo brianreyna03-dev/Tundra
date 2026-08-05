@@ -21,8 +21,6 @@ export default function PersonCard({
   const assignedZone = TL_ZONE_SLOTS.find(
     (slot) => slot.key === person.tlZone
   );
-  const leaderCount = team.filter(isTeamLeader).length;
-  const hasLeaderCapacity = isTL || leaderCount < TL_ZONE_SLOTS.length;
 
   return (
     <div
@@ -98,11 +96,7 @@ export default function PersonCard({
             }}
           >
             <option value="member">Team Member</option>
-            <option value="tl" disabled={!hasLeaderCapacity}>
-              {hasLeaderCapacity
-                ? "Team Leader (TL)"
-                : "Team Leader — all 4 added"}
-            </option>
+            <option value="tl">Team Leader (TL)</option>
           </select>
         </label>
 
