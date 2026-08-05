@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { nameFor, todayStr } from "../lib/util.js";
+import TeamLeaderStrip from "./TeamLeaderStrip.jsx";
 
 const MAP_AREAS = {
   unit: { prefix: "st", count: 12 },
@@ -263,6 +264,8 @@ export default function MapView({ data, onGenerate }) {
           </select>
         </div>
       </div>
+
+      <TeamLeaderStrip team={team} compact />
 
       {!built ? (
         <div className="empty map-empty">
