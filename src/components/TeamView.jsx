@@ -1,20 +1,17 @@
 import { useState } from "react";
 import PersonCard from "./PersonCard.jsx";
 import TeamLeaderStrip from "./TeamLeaderStrip.jsx";
-import { TL_ZONE_SLOTS, isTeamLeader } from "../lib/teamLeaders.js";
+import { isTeamLeader } from "../lib/teamLeaders.js";
 
 export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("member");
 
   const leaders = data.team.filter(isTeamLeader);
-  const hasLeaderCapacity = leaders.length < TL_ZONE_SLOTS.length;
 
   const add = () => {
     const value = name.trim();
     if (!value) return;
-    if (role === "tl" && !hasLeaderCapacity) return;
-
     actions.addPerson(value, role);
     setName("");
   };
@@ -49,8 +46,8 @@ export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
         <div>
           <span className="lbl">Add Team Member</span>
           <p>
-            Add a Team Member or Team Leader. Assign a Team Leader to ZONE 1,
-            either ZONE 2 position, or ZONE 3 from that person&apos;s Skills / Certs.
+            Add as many Team Members or Team Leaders as needed. Four zone positions
+            can be assigned from each Team Leader&apos;s Skills / Certs.
           </p>
         </div>
         <div className="addbar team-addbar">
@@ -67,16 +64,11 @@ export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
             onChange={(event) => setRole(event.target.value)}
           >
             <option value="member">Team Member</option>
-            <option value="tl" disabled={!hasLeaderCapacity}>
-              {hasLeaderCapacity
-                ? "Team Leader (TL)"
-                : "Team Leader — all 4 added"}
-            </option>
+            <option value="tl">Team Leader (TL)</option>
           </select>
           <button
             className="btn"
             onClick={add}
-            disabled={role === "tl" && !hasLeaderCapacity}
           >
             Add {role === "tl" ? "TL" : "Member"}
           </button>
@@ -108,7 +100,8 @@ export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
       )}
 
       <p className="hint">
-        Team leaders stay out of automatic station assignments. Open
+        Team leaders stay out of automatic station assignments. Any number of TLs
+        can be added, while only four can hold zone positions at one time. Open
         <b> Skills / Certs</b> to set or change a TL zone. A Team Leader marked
         <b> PTO</b> keeps the saved zone assignment but is hidden from zone
         coverage until returned to <b>On Shift</b>.
