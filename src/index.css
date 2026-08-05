@@ -2524,3 +2524,86 @@ button:disabled {
     zoom: 0.72;
   }
 }
+
+/* Team Leader zone selection lives inside Skills / Certs */
+.role-badge.zone-set {
+  border-color: #b9bdc2;
+  background: #eef0f2;
+  color: #30343a;
+}
+
+.role-badge.zone-open {
+  border-color: #e6b9bb;
+  background: #fff1f2;
+  color: #a1282d;
+}
+
+.certgroup-note {
+  margin: -2px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.tl-zone-certgroup {
+  margin-bottom: 18px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tl-zone-cert-grid {
+  grid-template-columns: repeat(4, minmax(145px, 1fr));
+}
+
+.tl-zone-cert {
+  align-items: flex-start;
+  min-height: 58px;
+}
+
+.tl-zone-cert > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tl-zone-cert strong,
+.tl-zone-cert small {
+  display: block;
+}
+
+.tl-zone-cert strong {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+}
+
+.tl-zone-cert small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+}
+
+.tl-zone-cert.disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.cert-empty-hint {
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .tl-zone-cert-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .tl-zone-cert-grid {
+    grid-template-columns: 1fr;
+  }
+}
