@@ -59,19 +59,7 @@ function reducer(state, action) {
       const leaderCount = state.team.filter((p) => p.role === "tl").length;
       const wantsLeader =
         action.role === "tl" && leaderCount < TL_ZONE_SLOTS.length;
-      const occupied = new Set(
-        state.team
-          .filter((p) => p.role === "tl")
-          .map((p) => p.tlZone)
-          .filter(Boolean)
-      );
-      const requestedZone = TL_ZONE_KEYS.has(action.tlZone)
-        ? action.tlZone
-        : null;
-      const tlZone =
-        wantsLeader && requestedZone && !occupied.has(requestedZone)
-          ? requestedZone
-          : null;
+
       return {
         ...state,
         schedule: null,
@@ -82,7 +70,8 @@ function reducer(state, action) {
             name: action.name,
             pto: false,
             role: wantsLeader ? "tl" : "member",
-            tlZone,
+            // Zone assignment is intentionally only changed in Skills / Certs.
+            tlZone: null,
             certs: [],
           },
         ],
@@ -120,25 +109,10 @@ function reducer(state, action) {
         requestedRole === "tl" && otherLeaderCount < TL_ZONE_SLOTS.length
           ? "tl"
           : "member";
-      const occupied = new Set(
-        state.team
-          .filter((p) => p.id !== action.id && p.role === "tl")
-          .map((p) => p.tlZone)
-          .filter(Boolean)
-      );
-      const requestedZone = TL_ZONE_KEYS.has(action.tlZone)
-        ? action.tlZone
-        : null;
       const currentZone = TL_ZONE_KEYS.has(current.tlZone)
         ? current.tlZone
         : null;
-      const candidateZone = requestedZone || currentZone;
-      const nextZone =
-        nextRole === "tl" &&
-        candidateZone &&
-        !occupied.has(candidateZone)
-          ? candidateZone
-          : null;
+      const nextZone = nextRole === "tl" ? currentZone : null;
 
       return {
         ...state,
@@ -313,13 +287,13 @@ export function useShiftData() {
 
   const actions = useMemo(
     () => ({
-      addPerson: (name, role = "member", tlZone = null) =>
-        dispatch({ type: "ADD_PERSON", name, role, tlZone }),
+      addPerson: (name, role = "member") =>
+        dispatch({ type: "ADD_PERSON", name, role }),
       removePerson: (id) => dispatch({ type: "REMOVE_PERSON", id }),
       renamePerson: (id, name) => dispatch({ type: "RENAME_PERSON", id, name }),
       setPTO: (id, pto) => dispatch({ type: "SET_PTO", id, pto }),
-      setTeamRole: (id, role, tlZone = null) =>
-        dispatch({ type: "SET_TEAM_ROLE", id, role, tlZone }),
+      setTeamRole: (id, role) =>
+        dispatch({ type: "SET_TEAM_ROLE", id, role }),
       setTLZone: (id, tlZone) =>
         dispatch({ type: "SET_TL_ZONE", id, tlZone }),
       toggleCert: (personId, stationId) =>
