@@ -57,10 +57,13 @@ function tryAssign(st, matchP, visited, can, order) {
 }
 
 export function generateSchedule(stations, team) {
-  const active = team.filter((p) => !p.pto);
+  // Team leaders are reserved for their dedicated zone positions and are not
+  // placed on production processes or in the floater pool.
+  const active = team.filter((p) => !p.pto && p.role !== "tl");
+  const activeLeaders = team.filter((p) => !p.pto && p.role === "tl");
   const nS = stations.length;
   const nP = active.length;
-  const ptoCount = team.length - nP;
+  const ptoCount = team.filter((p) => p.pto).length;
 
   // certification matrix: can[personIndex][stationIndex]
   const can = active.map((p) => {
@@ -130,6 +133,7 @@ export function generateSchedule(stations, team) {
       nS,
       working: nP,
       pto: ptoCount,
+      leaders: activeLeaders.length,
     },
   };
 }
