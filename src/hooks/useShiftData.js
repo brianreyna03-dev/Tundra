@@ -2,24 +2,142 @@ import { useReducer, useEffect, useMemo, useState } from "react";
 import { uid } from "../lib/util.js";
 import { loadData, saveData } from "../lib/storage.js";
 import { exampleData } from "../lib/example.js";
-import { generateSchedule } from "../lib/scheduler.js";
+import {
+  createEmptySchedule,
+  generateSchedule,
+} from "../lib/scheduler.js";
 import { TL_ZONE_KEYS } from "../lib/teamLeaders.js";
+
+function activeProductionTeam(team) {
+  return team.filter((person) => !person.pto && person.role !== "tl");
+}
+
+function scheduleStats(stations, team) {
+  return {
+    nS: stations.length,
+    working: activeProductionTeam(team).length,
+    pto: team.filter((person) => person.pto).length,
+    leaders: team.filter((person) => !person.pto && person.role === "tl").length,
+  };
+}
+
+// Keep a saved or manually edited plan valid after attendance, role,
+// certification, roster, or station changes. Valid assignments are preserved;
+// invalid ones are cleared and the floater list is rebuilt.
+function reconcileSchedule(schedule, stations, team) {
+  if (!schedule || !Array.isArray(schedule.segments)) return null;
+
+  const active = activeProductionTeam(team);
+  const activeById = new Map(active.map((person) => [person.id, person]));
+
+  const segments = schedule.segments.map((segment) => {
+    const assign = {};
+    const usedPeople = new Set();
+
+    stations.forEach((station) => {
+      const personId = segment.assign?.[station.id] || null;
+      const person = personId ? activeById.get(personId) : null;
+      const valid =
+        person &&
+        person.certs.includes(station.id) &&
+        !usedPeople.has(person.id);
+
+      assign[station.id] = valid ? person.id : null;
+      if (valid) usedPeople.add(person.id);
+    });
+
+    return {
+      ...segment,
+      assign,
+      float: active
+        .filter((person) => !usedPeople.has(person.id))
+        .map((person) => person.id),
+      filled: usedPeople.size,
+    };
+  });
+
+  return {
+    ...schedule,
+    segments,
+    stats: scheduleStats(stations, team),
+  };
+}
+
+function assignPerson(schedule, stations, team, segmentKey, stationId, personId) {
+  if (!schedule || !Array.isArray(schedule.segments)) return schedule;
+
+  const station = stations.find((candidate) => candidate.id === stationId);
+  if (!station) return schedule;
+
+  const active = activeProductionTeam(team);
+  const person = personId
+    ? active.find((candidate) => candidate.id === personId)
+    : null;
+
+  if (personId && (!person || !person.certs.includes(stationId))) {
+    return schedule;
+  }
+
+  const segments = schedule.segments.map((segment) => {
+    if (segment.key !== segmentKey) return segment;
+
+    const assign = Object.fromEntries(
+      stations.map((candidate) => [
+        candidate.id,
+        segment.assign?.[candidate.id] || null,
+      ])
+    );
+
+    // One person can occupy only one process during a quarter. Selecting a
+    // person who is already placed elsewhere moves them to the new station.
+    if (personId) {
+      Object.keys(assign).forEach((candidateStationId) => {
+        if (assign[candidateStationId] === personId) {
+          assign[candidateStationId] = null;
+        }
+      });
+    }
+
+    assign[stationId] = personId || null;
+
+    const assignedPeople = new Set(Object.values(assign).filter(Boolean));
+    return {
+      ...segment,
+      assign,
+      float: active
+        .filter((candidate) => !assignedPeople.has(candidate.id))
+        .map((candidate) => candidate.id),
+      filled: assignedPeople.size,
+      manuallyEdited: true,
+    };
+  });
+
+  return {
+    ...schedule,
+    mode: schedule.mode === "manual" ? "manual" : "adjusted",
+    manuallyEditedAt: Date.now(),
+    segments,
+    stats: scheduleStats(stations, team),
+  };
+}
 
 // Coerce any loaded/imported object into a clean, well-formed state.
 // Certifications are pruned to stations that actually exist.
 function normalize(d) {
   const data = d || {};
-  const stations = (data.stations || []).map((s) => ({
-    id: s.id || uid(),
-    name: String(s.name ?? "Untitled"),
-    category: s.category || "Stations",
+  const stations = (data.stations || []).map((station) => ({
+    id: station.id || uid(),
+    name: String(station.name ?? "Untitled"),
+    category: station.category || "Stations",
   }));
-  const validIds = new Set(stations.map((s) => s.id));
+  const validIds = new Set(stations.map((station) => station.id));
   const usedLeaderZones = new Set();
-  const team = (data.team || []).map((p) => {
-    const role = p.role === "tl" || p.isTL === true ? "tl" : "member";
+  const team = (data.team || []).map((person) => {
+    const role = person.role === "tl" || person.isTL === true ? "tl" : "member";
 
-    const requestedZone = TL_ZONE_KEYS.has(p.tlZone) ? p.tlZone : null;
+    const requestedZone = TL_ZONE_KEYS.has(person.tlZone)
+      ? person.tlZone
+      : null;
     const tlZone =
       role === "tl" &&
       requestedZone &&
@@ -29,68 +147,83 @@ function normalize(d) {
     if (tlZone) usedLeaderZones.add(tlZone);
 
     return {
-      id: p.id || uid(),
-      name: String(p.name ?? "Unnamed"),
-      pto: !!p.pto,
+      id: person.id || uid(),
+      name: String(person.name ?? "Unnamed"),
+      pto: !!person.pto,
       role,
       tlZone,
-      certs: Array.isArray(p.certs)
-        ? p.certs.filter((c) => validIds.has(c))
+      certs: Array.isArray(person.certs)
+        ? person.certs.filter((certificationId) =>
+            validIds.has(certificationId)
+          )
         : [],
     };
   });
-  // Only keep a schedule that matches the current segment-based shape; an older
-  // saved schedule (e.g. the previous two-half format) is dropped so it can be
-  // rebuilt cleanly rather than rendered against the new board.
-  const schedule =
+
+  const loadedSchedule =
     data.schedule && Array.isArray(data.schedule.segments)
       ? data.schedule
       : null;
-  return { stations, team, schedule };
+
+  return {
+    stations,
+    team,
+    schedule: reconcileSchedule(loadedSchedule, stations, team),
+  };
 }
 
 function reducer(state, action) {
   switch (action.type) {
     case "ADD_PERSON": {
+      const nextTeam = [
+        ...state.team,
+        {
+          id: uid(),
+          name: action.name,
+          pto: false,
+          role: action.role === "tl" ? "tl" : "member",
+          // Zone assignment is intentionally only changed in Skills / Certs.
+          tlZone: null,
+          certs: [],
+        },
+      ];
       return {
         ...state,
-        schedule: null,
-        team: [
-          ...state.team,
-          {
-            id: uid(),
-            name: action.name,
-            pto: false,
-            role: action.role === "tl" ? "tl" : "member",
-            // Zone assignment is intentionally only changed in Skills / Certs.
-            tlZone: null,
-            certs: [],
-          },
-        ],
+        team: nextTeam,
+        schedule: reconcileSchedule(state.schedule, state.stations, nextTeam),
       };
     }
 
-    case "REMOVE_PERSON":
-      return { ...state, team: state.team.filter((p) => p.id !== action.id) };
+    case "REMOVE_PERSON": {
+      const nextTeam = state.team.filter((person) => person.id !== action.id);
+      return {
+        ...state,
+        team: nextTeam,
+        schedule: reconcileSchedule(state.schedule, state.stations, nextTeam),
+      };
+    }
 
     case "RENAME_PERSON":
       return {
         ...state,
-        team: state.team.map((p) =>
-          p.id === action.id ? { ...p, name: action.name } : p
+        team: state.team.map((person) =>
+          person.id === action.id ? { ...person, name: action.name } : person
         ),
       };
 
-    case "SET_PTO":
+    case "SET_PTO": {
+      const nextTeam = state.team.map((person) =>
+        person.id === action.id ? { ...person, pto: action.pto } : person
+      );
       return {
         ...state,
-        team: state.team.map((p) =>
-          p.id === action.id ? { ...p, pto: action.pto } : p
-        ),
+        team: nextTeam,
+        schedule: reconcileSchedule(state.schedule, state.stations, nextTeam),
       };
+    }
 
     case "SET_TEAM_ROLE": {
-      const current = state.team.find((p) => p.id === action.id);
+      const current = state.team.find((person) => person.id === action.id);
       if (!current) return state;
 
       const nextRole = action.role === "tl" ? "tl" : "member";
@@ -98,15 +231,16 @@ function reducer(state, action) {
         ? current.tlZone
         : null;
       const nextZone = nextRole === "tl" ? currentZone : null;
+      const nextTeam = state.team.map((person) =>
+        person.id === action.id
+          ? { ...person, role: nextRole, tlZone: nextZone }
+          : person
+      );
 
       return {
         ...state,
-        schedule: null,
-        team: state.team.map((p) =>
-          p.id === action.id
-            ? { ...p, role: nextRole, tlZone: nextZone }
-            : p
-        ),
+        team: nextTeam,
+        schedule: reconcileSchedule(state.schedule, state.stations, nextTeam),
       };
     }
 
@@ -115,96 +249,145 @@ function reducer(state, action) {
         ? action.tlZone
         : null;
       const occupied = state.team.some(
-        (p) =>
-          p.id !== action.id &&
-          p.role === "tl" &&
-          p.tlZone === requestedZone
+        (person) =>
+          person.id !== action.id &&
+          person.role === "tl" &&
+          person.tlZone === requestedZone
       );
       if (requestedZone && occupied) return state;
       return {
         ...state,
-        team: state.team.map((p) =>
-          p.id === action.id && p.role === "tl"
-            ? { ...p, tlZone: requestedZone }
-            : p
+        team: state.team.map((person) =>
+          person.id === action.id && person.role === "tl"
+            ? { ...person, tlZone: requestedZone }
+            : person
         ),
       };
     }
 
-    case "TOGGLE_CERT":
+    case "TOGGLE_CERT": {
+      const nextTeam = state.team.map((person) => {
+        if (person.id !== action.personId) return person;
+        const hasCertification = person.certs.includes(action.stationId);
+        return {
+          ...person,
+          certs: hasCertification
+            ? person.certs.filter(
+                (certificationId) => certificationId !== action.stationId
+              )
+            : [...person.certs, action.stationId],
+        };
+      });
       return {
         ...state,
-        team: state.team.map((p) => {
-          if (p.id !== action.personId) return p;
-          const has = p.certs.includes(action.stationId);
-          return {
-            ...p,
-            certs: has
-              ? p.certs.filter((c) => c !== action.stationId)
-              : [...p.certs, action.stationId],
-          };
-        }),
-      };
-
-    case "SET_CATEGORY_CERTS": {
-      const ids = state.stations
-        .filter((s) => s.category === action.category)
-        .map((s) => s.id);
-      const idSet = new Set(ids);
-      return {
-        ...state,
-        team: state.team.map((p) => {
-          if (p.id !== action.personId) return p;
-          const rest = p.certs.filter((c) => !idSet.has(c));
-          return { ...p, certs: action.on ? [...rest, ...ids] : rest };
-        }),
+        team: nextTeam,
+        schedule: reconcileSchedule(state.schedule, state.stations, nextTeam),
       };
     }
 
-    case "ADD_STATION":
+    case "SET_CATEGORY_CERTS": {
+      const ids = state.stations
+        .filter((station) => station.category === action.category)
+        .map((station) => station.id);
+      const idSet = new Set(ids);
+      const nextTeam = state.team.map((person) => {
+        if (person.id !== action.personId) return person;
+        const rest = person.certs.filter(
+          (certificationId) => !idSet.has(certificationId)
+        );
+        return {
+          ...person,
+          certs: action.on ? [...rest, ...ids] : rest,
+        };
+      });
       return {
         ...state,
-        stations: [
-          ...state.stations,
-          { id: uid(), name: action.name, category: action.category },
-        ],
+        team: nextTeam,
+        schedule: reconcileSchedule(state.schedule, state.stations, nextTeam),
       };
+    }
 
-    case "REMOVE_STATION":
+    case "ADD_STATION": {
+      const nextStations = [
+        ...state.stations,
+        { id: uid(), name: action.name, category: action.category },
+      ];
       return {
         ...state,
-        stations: state.stations.filter((s) => s.id !== action.id),
-        team: state.team.map((p) => ({
-          ...p,
-          certs: p.certs.filter((c) => c !== action.id),
-        })),
+        stations: nextStations,
+        schedule: reconcileSchedule(state.schedule, nextStations, state.team),
       };
+    }
+
+    case "REMOVE_STATION": {
+      const nextStations = state.stations.filter(
+        (station) => station.id !== action.id
+      );
+      const nextTeam = state.team.map((person) => ({
+        ...person,
+        certs: person.certs.filter(
+          (certificationId) => certificationId !== action.id
+        ),
+      }));
+      return {
+        ...state,
+        stations: nextStations,
+        team: nextTeam,
+        schedule: reconcileSchedule(state.schedule, nextStations, nextTeam),
+      };
+    }
 
     case "RENAME_STATION":
       return {
         ...state,
-        stations: state.stations.map((s) =>
-          s.id === action.id ? { ...s, name: action.name } : s
+        stations: state.stations.map((station) =>
+          station.id === action.id
+            ? { ...station, name: action.name }
+            : station
         ),
       };
 
     case "MOVE_STATION": {
-      // move a station up/down within its own category (priority order)
       const stations = [...state.stations];
-      const s = stations.find((x) => x.id === action.id);
-      if (!s) return state;
-      const sameCat = stations.filter((x) => x.category === s.category);
-      const pos = sameCat.indexOf(s);
-      const swap = sameCat[pos + action.dir];
+      const station = stations.find((candidate) => candidate.id === action.id);
+      if (!station) return state;
+      const sameCategory = stations.filter(
+        (candidate) => candidate.category === station.category
+      );
+      const position = sameCategory.indexOf(station);
+      const swap = sameCategory[position + action.dir];
       if (!swap) return state;
-      const iA = stations.indexOf(s);
-      const iB = stations.indexOf(swap);
-      [stations[iA], stations[iB]] = [stations[iB], stations[iA]];
+      const stationIndex = stations.indexOf(station);
+      const swapIndex = stations.indexOf(swap);
+      [stations[stationIndex], stations[swapIndex]] = [
+        stations[swapIndex],
+        stations[stationIndex],
+      ];
       return { ...state, stations };
     }
 
+    case "SET_ASSIGNMENT":
+      return {
+        ...state,
+        schedule: assignPerson(
+          state.schedule,
+          state.stations,
+          state.team,
+          action.segmentKey,
+          action.stationId,
+          action.personId
+        ),
+      };
+
     case "SET_SCHEDULE":
-      return { ...state, schedule: action.schedule };
+      return {
+        ...state,
+        schedule: reconcileSchedule(
+          action.schedule,
+          state.stations,
+          state.team
+        ),
+      };
 
     case "LOAD_DATA":
       return normalize(action.data);
@@ -218,12 +401,10 @@ export function useShiftData() {
   const [storageOK, setStorageOK] = useState(true);
   const [loading, setLoading] = useState(true);
 
-  // Start with a usable fallback immediately, then replace it with Supabase data.
   const [state, dispatch] = useReducer(reducer, undefined, () =>
     normalize(exampleData())
   );
 
-  // Load the shared board once when the app starts.
   useEffect(() => {
     let cancelled = false;
 
@@ -252,7 +433,6 @@ export function useShiftData() {
     };
   }, []);
 
-  // Persist every change after the first shared load completes.
   useEffect(() => {
     if (loading) return;
 
@@ -275,7 +455,8 @@ export function useShiftData() {
       addPerson: (name, role = "member") =>
         dispatch({ type: "ADD_PERSON", name, role }),
       removePerson: (id) => dispatch({ type: "REMOVE_PERSON", id }),
-      renamePerson: (id, name) => dispatch({ type: "RENAME_PERSON", id, name }),
+      renamePerson: (id, name) =>
+        dispatch({ type: "RENAME_PERSON", id, name }),
       setPTO: (id, pto) => dispatch({ type: "SET_PTO", id, pto }),
       setTeamRole: (id, role) =>
         dispatch({ type: "SET_TEAM_ROLE", id, role }),
@@ -290,15 +471,27 @@ export function useShiftData() {
       removeStation: (id) => dispatch({ type: "REMOVE_STATION", id }),
       renameStation: (id, name) =>
         dispatch({ type: "RENAME_STATION", id, name }),
-      moveStation: (id, dir) => dispatch({ type: "MOVE_STATION", id, dir }),
+      moveStation: (id, dir) =>
+        dispatch({ type: "MOVE_STATION", id, dir }),
+      assignPerson: (segmentKey, stationId, personId) =>
+        dispatch({
+          type: "SET_ASSIGNMENT",
+          segmentKey,
+          stationId,
+          personId,
+        }),
       generate: () =>
         dispatch({
           type: "SET_SCHEDULE",
           schedule: generateSchedule(state.stations, state.team),
         }),
+      startManual: () =>
+        dispatch({
+          type: "SET_SCHEDULE",
+          schedule: createEmptySchedule(state.stations, state.team),
+        }),
       loadData: (data) => dispatch({ type: "LOAD_DATA", data }),
     }),
-    // generate() reads the current stations/team, so refresh when they change
     [state.stations, state.team]
   );
 
