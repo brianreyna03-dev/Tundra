@@ -1,9 +1,5 @@
 import CertEditor from "./CertEditor.jsx";
-import {
-  TL_ZONE_SLOTS,
-  firstOpenLeaderSlot,
-  isTeamLeader,
-} from "../lib/teamLeaders.js";
+import { TL_ZONE_SLOTS, isTeamLeader } from "../lib/teamLeaders.js";
 
 export default function PersonCard({
   person,
@@ -22,17 +18,11 @@ export default function PersonCard({
     .toUpperCase();
 
   const isTL = isTeamLeader(person);
-  const firstOpen = firstOpenLeaderSlot(team, person.id);
-  const occupiedByOther = new Set(
-    team
-      .filter(
-        (candidate) =>
-          candidate.id !== person.id && isTeamLeader(candidate)
-      )
-      .map((candidate) => candidate.tlZone)
-      .filter(Boolean)
+  const assignedZone = TL_ZONE_SLOTS.find(
+    (slot) => slot.key === person.tlZone
   );
-  const hasLeaderCapacity = isTL || Boolean(firstOpen);
+  const leaderCount = team.filter(isTeamLeader).length;
+  const hasLeaderCapacity = isTL || leaderCount < TL_ZONE_SLOTS.length;
 
   return (
     <div
@@ -54,6 +44,11 @@ export default function PersonCard({
               <span className={isTL ? "role-badge tl" : "role-badge"}>
                 {isTL ? "Team Leader" : "Team Member"}
               </span>
+              {isTL && (
+                <span className={assignedZone ? "role-badge zone-set" : "role-badge zone-open"}>
+                  {assignedZone ? assignedZone.label : "Zone not assigned"}
+                </span>
+              )}
               <span className="certcount">
                 {person.certs.length} certified process
                 {person.certs.length === 1 ? "" : "es"}
@@ -98,63 +93,35 @@ export default function PersonCard({
             value={isTL ? "tl" : "member"}
             onChange={(event) => {
               const nextRole = event.target.value;
-              actions.setTeamRole(
-                person.id,
-                nextRole,
-                nextRole === "tl"
-                  ? person.tlZone || firstOpen
-                  : null
-              );
+              actions.setTeamRole(person.id, nextRole);
+              if (nextRole === "tl" && !isOpen) onToggleOpen();
             }}
           >
             <option value="member">Team Member</option>
             <option value="tl" disabled={!hasLeaderCapacity}>
               {hasLeaderCapacity
                 ? "Team Leader (TL)"
-                : "Team Leader — all 4 assigned"}
+                : "Team Leader — all 4 added"}
             </option>
           </select>
         </label>
 
-        {isTL && (
-          <label>
-            <span>TL zone position</span>
-            <select
-              value={person.tlZone || ""}
-              onChange={(event) =>
-                actions.setTLZone(person.id, event.target.value || null)
-              }
-            >
-              <option value="" disabled>
-                Select a zone position
-              </option>
-              {TL_ZONE_SLOTS.map((slot) => (
-                <option
-                  key={slot.key}
-                  value={slot.key}
-                  disabled={
-                    slot.key !== person.tlZone && occupiedByOther.has(slot.key)
-                  }
-                >
-                  {slot.label} — {slot.position}
-                  {occupiedByOther.has(slot.key) && slot.key !== person.tlZone
-                    ? " (assigned)"
-                    : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
         <span className="person-role-note">
           {isTL
-            ? "Reserved for leadership coverage; not placed on a station by the scheduler."
+            ? assignedZone
+              ? `${assignedZone.label} is assigned. Change the zone under Skills / Certs.`
+              : "No zone assigned yet. Choose one under Skills / Certs."
             : "Eligible for certified station assignments."}
         </span>
       </div>
 
       {isOpen && (
-        <CertEditor person={person} stations={stations} actions={actions} />
+        <CertEditor
+          person={person}
+          team={team}
+          stations={stations}
+          actions={actions}
+        />
       )}
     </div>
   );
