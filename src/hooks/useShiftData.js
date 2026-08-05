@@ -16,19 +16,22 @@ function normalize(d) {
   }));
   const validIds = new Set(stations.map((s) => s.id));
   const usedLeaderZones = new Set();
+  let leaderCount = 0;
   const team = (data.team || []).map((p) => {
     const wantsLeader = p.role === "tl" || p.isTL === true;
+    const role =
+      wantsLeader && leaderCount < TL_ZONE_SLOTS.length ? "tl" : "member";
+    if (role === "tl") leaderCount += 1;
+
     const requestedZone = TL_ZONE_KEYS.has(p.tlZone) ? p.tlZone : null;
-    const firstOpenZone = TL_ZONE_SLOTS.find(
-      (slot) => !usedLeaderZones.has(slot.key)
-    )?.key;
-    const tlZone = wantsLeader
-      ? requestedZone && !usedLeaderZones.has(requestedZone)
+    const tlZone =
+      role === "tl" &&
+      requestedZone &&
+      !usedLeaderZones.has(requestedZone)
         ? requestedZone
-        : firstOpenZone || null
-      : null;
-    const role = wantsLeader && tlZone ? "tl" : "member";
+        : null;
     if (tlZone) usedLeaderZones.add(tlZone);
+
     return {
       id: p.id || uid(),
       name: String(p.name ?? "Unnamed"),
@@ -53,6 +56,9 @@ function normalize(d) {
 function reducer(state, action) {
   switch (action.type) {
     case "ADD_PERSON": {
+      const leaderCount = state.team.filter((p) => p.role === "tl").length;
+      const wantsLeader =
+        action.role === "tl" && leaderCount < TL_ZONE_SLOTS.length;
       const occupied = new Set(
         state.team
           .filter((p) => p.role === "tl")
@@ -63,9 +69,7 @@ function reducer(state, action) {
         ? action.tlZone
         : null;
       const tlZone =
-        action.role === "tl" &&
-        requestedZone &&
-        !occupied.has(requestedZone)
+        wantsLeader && requestedZone && !occupied.has(requestedZone)
           ? requestedZone
           : null;
       return {
@@ -77,7 +81,7 @@ function reducer(state, action) {
             id: uid(),
             name: action.name,
             pto: false,
-            role: tlZone ? "tl" : "member",
+            role: wantsLeader ? "tl" : "member",
             tlZone,
             certs: [],
           },
@@ -105,35 +109,43 @@ function reducer(state, action) {
       };
 
     case "SET_TEAM_ROLE": {
-      const nextRole = action.role === "tl" ? "tl" : "member";
-      const requestedZone = TL_ZONE_KEYS.has(action.tlZone)
-        ? action.tlZone
-        : null;
+      const current = state.team.find((p) => p.id === action.id);
+      if (!current) return state;
+
+      const otherLeaderCount = state.team.filter(
+        (p) => p.id !== action.id && p.role === "tl"
+      ).length;
+      const requestedRole = action.role === "tl" ? "tl" : "member";
+      const nextRole =
+        requestedRole === "tl" && otherLeaderCount < TL_ZONE_SLOTS.length
+          ? "tl"
+          : "member";
       const occupied = new Set(
         state.team
           .filter((p) => p.id !== action.id && p.role === "tl")
           .map((p) => p.tlZone)
           .filter(Boolean)
       );
-      const fallbackZone = TL_ZONE_SLOTS.find(
-        (slot) => !occupied.has(slot.key)
-      )?.key;
+      const requestedZone = TL_ZONE_KEYS.has(action.tlZone)
+        ? action.tlZone
+        : null;
+      const currentZone = TL_ZONE_KEYS.has(current.tlZone)
+        ? current.tlZone
+        : null;
+      const candidateZone = requestedZone || currentZone;
       const nextZone =
-        nextRole === "tl"
-          ? requestedZone && !occupied.has(requestedZone)
-            ? requestedZone
-            : fallbackZone || null
+        nextRole === "tl" &&
+        candidateZone &&
+        !occupied.has(candidateZone)
+          ? candidateZone
           : null;
+
       return {
         ...state,
         schedule: null,
         team: state.team.map((p) =>
           p.id === action.id
-            ? {
-                ...p,
-                role: nextRole === "tl" && nextZone ? "tl" : "member",
-                tlZone: nextZone,
-              }
+            ? { ...p, role: nextRole, tlZone: nextZone }
             : p
         ),
       };
