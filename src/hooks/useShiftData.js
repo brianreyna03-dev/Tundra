@@ -3,7 +3,7 @@ import { uid } from "../lib/util.js";
 import { loadData, saveData } from "../lib/storage.js";
 import { exampleData } from "../lib/example.js";
 import { generateSchedule } from "../lib/scheduler.js";
-import { TL_ZONE_KEYS, TL_ZONE_SLOTS } from "../lib/teamLeaders.js";
+import { TL_ZONE_KEYS } from "../lib/teamLeaders.js";
 
 // Coerce any loaded/imported object into a clean, well-formed state.
 // Certifications are pruned to stations that actually exist.
@@ -16,12 +16,8 @@ function normalize(d) {
   }));
   const validIds = new Set(stations.map((s) => s.id));
   const usedLeaderZones = new Set();
-  let leaderCount = 0;
   const team = (data.team || []).map((p) => {
-    const wantsLeader = p.role === "tl" || p.isTL === true;
-    const role =
-      wantsLeader && leaderCount < TL_ZONE_SLOTS.length ? "tl" : "member";
-    if (role === "tl") leaderCount += 1;
+    const role = p.role === "tl" || p.isTL === true ? "tl" : "member";
 
     const requestedZone = TL_ZONE_KEYS.has(p.tlZone) ? p.tlZone : null;
     const tlZone =
@@ -56,10 +52,6 @@ function normalize(d) {
 function reducer(state, action) {
   switch (action.type) {
     case "ADD_PERSON": {
-      const leaderCount = state.team.filter((p) => p.role === "tl").length;
-      const wantsLeader =
-        action.role === "tl" && leaderCount < TL_ZONE_SLOTS.length;
-
       return {
         ...state,
         schedule: null,
@@ -69,7 +61,7 @@ function reducer(state, action) {
             id: uid(),
             name: action.name,
             pto: false,
-            role: wantsLeader ? "tl" : "member",
+            role: action.role === "tl" ? "tl" : "member",
             // Zone assignment is intentionally only changed in Skills / Certs.
             tlZone: null,
             certs: [],
@@ -101,14 +93,7 @@ function reducer(state, action) {
       const current = state.team.find((p) => p.id === action.id);
       if (!current) return state;
 
-      const otherLeaderCount = state.team.filter(
-        (p) => p.id !== action.id && p.role === "tl"
-      ).length;
-      const requestedRole = action.role === "tl" ? "tl" : "member";
-      const nextRole =
-        requestedRole === "tl" && otherLeaderCount < TL_ZONE_SLOTS.length
-          ? "tl"
-          : "member";
+      const nextRole = action.role === "tl" ? "tl" : "member";
       const currentZone = TL_ZONE_KEYS.has(current.tlZone)
         ? current.tlZone
         : null;
