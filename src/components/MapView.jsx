@@ -597,13 +597,33 @@ export default function MapView({
               </strong>
             </div>
 
-            <button
-              className="btn ghost sm"
-              type="button"
-              onClick={() => window.print()}
-            >
-              Print Map
-            </button>
+            <div className="map-status-actions">
+              <button
+                className="btn ghost sm map-rebuild"
+                type="button"
+                title="Generate a new certified coverage plan"
+                onClick={() => {
+                  const confirmed = window.confirm(
+                    "Rebuild the floor map? This will replace all current quarter assignments, including manual changes."
+                  );
+
+                  if (!confirmed) return;
+
+                  onGenerate();
+                  setManualMode(false);
+                }}
+              >
+                ↻ Rebuild Map
+              </button>
+
+              <button
+                className="btn ghost sm"
+                type="button"
+                onClick={() => window.print()}
+              >
+                Print Map
+              </button>
+            </div>
           </section>
 
           <div className="floor-map-shell">
