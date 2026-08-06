@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { nameFor, todayStr } from "../lib/util.js";
 import TeamLeaderStrip from "./TeamLeaderStrip.jsx";
 import AssignmentSelect from "./AssignmentSelect.jsx";
@@ -298,6 +298,14 @@ export default function MapView({
   const [manualMode, setManualMode] =
     useState(false);
 
+  const [isPullingLever, setIsPullingLever] =
+    useState(false);
+
+  const [showCelebration, setShowCelebration] =
+    useState(false);
+
+  const rebuildTimers = useRef([]);
+
   const segments = Array.isArray(
     schedule?.segments
   )
@@ -410,6 +418,51 @@ export default function MapView({
     team,
     editing: manualMode,
     onAssign,
+  };
+
+  useEffect(() => {
+    return () => {
+      rebuildTimers.current.forEach((timer) =>
+        window.clearTimeout(timer)
+      );
+    };
+  }, []);
+
+  const triggerJackpotRebuild = () => {
+    if (isPullingLever) return;
+
+    const confirmed = window.confirm(
+      "Rebuild the floor map? This will replace all current quarter assignments, including manual changes."
+    );
+
+    if (!confirmed) return;
+
+    rebuildTimers.current.forEach((timer) =>
+      window.clearTimeout(timer)
+    );
+    rebuildTimers.current = [];
+
+    setIsPullingLever(true);
+    setShowCelebration(true);
+
+    rebuildTimers.current.push(
+      window.setTimeout(() => {
+        onGenerate();
+        setManualMode(false);
+      }, 900)
+    );
+
+    rebuildTimers.current.push(
+      window.setTimeout(() => {
+        setIsPullingLever(false);
+      }, 1100)
+    );
+
+    rebuildTimers.current.push(
+      window.setTimeout(() => {
+        setShowCelebration(false);
+      }, 3200)
+    );
   };
 
   return (
@@ -598,23 +651,65 @@ export default function MapView({
             </div>
 
             <div className="map-status-actions">
-              <button
-                className="btn ghost sm map-rebuild"
-                type="button"
-                title="Generate a new certified coverage plan"
-                onClick={() => {
-                  const confirmed = window.confirm(
-                    "Rebuild the floor map? This will replace all current quarter assignments, including manual changes."
-                  );
-
-                  if (!confirmed) return;
-
-                  onGenerate();
-                  setManualMode(false);
-                }}
+              <div
+                className={`map-jackpot${
+                  isPullingLever ? " is-pulling" : ""
+                }${
+                  showCelebration
+                    ? " is-celebrating"
+                    : ""
+                }`}
               >
-                ↻ Rebuild Map
-              </button>
+                <div className="map-jackpot-machine">
+                  <span className="map-jackpot-kicker">
+                    Vegas rebuild
+                  </span>
+
+                  <div className="map-jackpot-window">
+                    <span aria-hidden="true">
+                      🎰
+                    </span>
+
+                    <strong>Pull to rebuild</strong>
+                  </div>
+
+                  <button
+                    className="map-jackpot-lever"
+                    type="button"
+                    title="Pull the lever to rebuild the floor map"
+                    aria-label="Pull the lever to rebuild the floor map"
+                    onClick={triggerJackpotRebuild}
+                    disabled={isPullingLever}
+                  >
+                    <span className="map-jackpot-shaft" />
+                    <span className="map-jackpot-knob" />
+                  </button>
+
+                  <div
+                    className="map-jackpot-burst map-jackpot-confetti"
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: 18 }, (_, index) => (
+                      <span
+                        key={`confetti-${index}`}
+                        className={`confetti-piece cp-${index + 1}`}
+                      />
+                    ))}
+                  </div>
+
+                  <div
+                    className="map-jackpot-burst map-jackpot-fireworks"
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: 3 }, (_, index) => (
+                      <span
+                        key={`firework-${index}`}
+                        className={`firework fw-${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
 
               <button
                 className="btn ghost sm"
