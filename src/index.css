@@ -2970,3 +2970,75 @@ main .manual-toggle.is-active {
   background-color: #ffffff !important;
   background-image: none !important;
 }
+
+/* ============================================================
+   Readability override — softer zone colors + full names
+   Keep this block LAST in this file so it wins the CSS cascade.
+   ============================================================ */
+:root {
+  --zone-1: #dceef6;
+  --zone-1-dark: #17647d;
+  --zone-2a: #f2dce8;
+  --zone-2a-dark: #7b2857;
+  --zone-2b: #f5e1d3;
+  --zone-2b-dark: #884318;
+  --zone-3: #deeddc;
+  --zone-3-dark: #316b38;
+}
+
+/* Strong, calm text contrast on every colored zone. */
+.leader-slot[class*="leader-zone-"],
+.map-process[class*="map-zone-zone"] {
+  color: #17212b;
+}
+
+.leader-slot[class*="leader-zone-"] .leader-zone-copy strong,
+.leader-slot[class*="leader-zone-"] .leader-person b,
+.map-process[class*="map-zone-zone"] .map-code,
+.map-process[class*="map-zone-zone"] .map-assignee strong,
+.map-process[class*="map-zone-zone"] .map-special-label {
+  color: #17212b;
+}
+
+.leader-slot[class*="leader-zone-"] .leader-zone-copy span,
+.leader-slot[class*="leader-zone-"] .leader-person small,
+.map-process[class*="map-zone-zone"] .map-process-name {
+  color: #46525d;
+}
+
+/* Let employee names wrap instead of turning into ... */
+.leader-person {
+  align-items: flex-start;
+}
+
+.leader-person b,
+.map-assignee strong {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.22;
+}
+
+/* Also keep the process/station description visible. */
+.map-process-name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.2;
+}
+
+/* Give wrapped names enough breathing room. */
+.leader-slot {
+  min-height: 96px;
+}
+
+.map-process {
+  min-height: 92px;
+}
+
+.map-assignee {
+  align-items: flex-start;
+}
