@@ -2181,6 +2181,7 @@ button:disabled {
     inset 0 -5px 0 rgba(126, 72, 0, 0.17),
     0 7px 16px rgba(0, 0, 0, 0.2);
   overflow: visible;
+  isolation: isolate;
 }
 
 .map-jackpot-display {
@@ -2295,6 +2296,7 @@ button:disabled {
 
 .map-jackpot-lever {
   position: absolute;
+  z-index: 30;
   top: 50%;
   right: 20px;
   display: block;
@@ -2316,9 +2318,9 @@ button:disabled {
   position: absolute;
   z-index: 0;
   top: 25px;
-  right: 5px;
+  right: 11px;
   bottom: 4px;
-  left: 17px;
+  left: 11px;
   border-radius: 36px 36px 15px 15px;
   background:
     linear-gradient(90deg, #050505 0%, #171717 45%, #020202 100%);
@@ -2332,11 +2334,13 @@ button:disabled {
   position: absolute;
   z-index: 1;
   top: 34px;
-  right: 24px;
+  right: auto;
   bottom: 47px;
+  left: 50%;
   width: 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
+  transform: translateX(-50%);
 }
 
 .map-jackpot-lever:hover .map-jackpot-knob,
@@ -2364,8 +2368,9 @@ button:disabled {
 
 .map-jackpot-pivot {
   position: absolute;
-  right: 12px;
+  right: auto;
   bottom: 3px;
+  left: 50%;
   z-index: 5;
   width: 52px;
   height: 78px;
@@ -2378,6 +2383,7 @@ button:disabled {
     0 4px 7px rgba(0, 0, 0, 0.32),
     inset 0 2px 0 rgba(255, 255, 255, 0.76),
     inset 0 -3px 0 rgba(104, 65, 0, 0.15);
+  transform: translateX(-50%);
 }
 
 .map-jackpot-pivot::before {
@@ -2397,9 +2403,10 @@ button:disabled {
 
 .map-jackpot-arm {
   position: absolute;
-  right: 33px;
+  right: auto;
   bottom: 58px;
-  z-index: 4;
+  left: 50%;
+  z-index: 7;
   width: 11px;
   height: var(--lever-arm-height);
   min-height: 40px;
@@ -2410,7 +2417,7 @@ button:disabled {
   box-shadow:
     2px 3px 5px rgba(0, 0, 0, 0.34),
     inset 2px 0 2px rgba(255, 255, 255, 0.9);
-  transform: translateX(50%) skewX(-2deg);
+  transform: translateX(-50%) skewX(-2deg);
   transform-origin: 50% 100%;
   transition:
     height 360ms cubic-bezier(0.18, 0.82, 0.24, 1),
@@ -2448,6 +2455,7 @@ button:disabled {
     inset 0 3px 4px rgba(255, 255, 255, 0.9),
     inset 0 -4px 6px rgba(130, 83, 0, 0.13);
   transform: translateX(-50%) skewX(2deg);
+  z-index: 9;
   transition: box-shadow 150ms ease;
 }
 
