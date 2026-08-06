@@ -9,6 +9,15 @@ const MAP_AREAS = {
   material: { prefix: "pm", count: 4 },
 };
 
+const JACKPOT_REELS = [
+  ["7", "★", "⚙", "◆", "⚡", "★", "7", "⚙", "◆", "⚡", "7"],
+  ["★", "⚙", "7", "⚡", "◆", "7", "★", "◆", "⚙", "⚡", "7"],
+  ["⚙", "◆", "★", "7", "⚡", "◆", "⚙", "★", "7", "⚡", "7"],
+];
+
+const LEVER_TRIGGER_POINT = 0.72;
+const LEVER_PULL_DISTANCE = 82;
+
 function initialsOf(name) {
   return String(name || "")
     .trim()
@@ -298,13 +307,24 @@ export default function MapView({
   const [manualMode, setManualMode] =
     useState(false);
 
-  const [isPullingLever, setIsPullingLever] =
+  const [leverPull, setLeverPull] =
+    useState(0);
+
+  const [isLeverDragging, setIsLeverDragging] =
+    useState(false);
+
+  const [isSpinning, setIsSpinning] =
     useState(false);
 
   const [showCelebration, setShowCelebration] =
     useState(false);
 
   const rebuildTimers = useRef([]);
+  const leverDrag = useRef({
+    pointerId: null,
+    startY: 0,
+    pull: 0,
+  });
 
   const segments = Array.isArray(
     schedule?.segments
@@ -428,41 +448,169 @@ export default function MapView({
     };
   }, []);
 
-  const triggerJackpotRebuild = () => {
-    if (isPullingLever) return;
+  const clearRebuildTimers = () => {
+    rebuildTimers.current.forEach((timer) =>
+      window.clearTimeout(timer)
+    );
+    rebuildTimers.current = [];
+  };
+
+  const startJackpotRebuild = () => {
+    if (isSpinning) return;
 
     const confirmed = window.confirm(
       "Rebuild the floor map? This will replace all current quarter assignments, including manual changes."
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      setLeverPull(0);
+      return;
+    }
 
-    rebuildTimers.current.forEach((timer) =>
-      window.clearTimeout(timer)
+    clearRebuildTimers();
+    setShowCelebration(false);
+    setLeverPull(1);
+    setIsSpinning(true);
+
+    const reducedMotion = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)"
+    )?.matches;
+    const reelDuration = reducedMotion ? 250 : 1900;
+
+    rebuildTimers.current.push(
+      window.setTimeout(() => {
+        setLeverPull(0);
+      }, reducedMotion ? 80 : 520)
     );
-    rebuildTimers.current = [];
-
-    setIsPullingLever(true);
-    setShowCelebration(true);
 
     rebuildTimers.current.push(
       window.setTimeout(() => {
         onGenerate();
         setManualMode(false);
-      }, 900)
-    );
-
-    rebuildTimers.current.push(
-      window.setTimeout(() => {
-        setIsPullingLever(false);
-      }, 1100)
+        setIsSpinning(false);
+        setShowCelebration(true);
+      }, reelDuration)
     );
 
     rebuildTimers.current.push(
       window.setTimeout(() => {
         setShowCelebration(false);
-      }, 3200)
+      }, reelDuration + 3000)
     );
+  };
+
+  const beginLeverPull = (event) => {
+    if (
+      isSpinning ||
+      (event.pointerType === "mouse" &&
+        event.button !== 0)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+
+    leverDrag.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      pull: 0,
+    };
+
+    setIsLeverDragging(true);
+    setLeverPull(0);
+  };
+
+  const moveLever = (event) => {
+    if (
+      leverDrag.current.pointerId !==
+      event.pointerId
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const distance = Math.max(
+      0,
+      event.clientY - leverDrag.current.startY
+    );
+    const pull = Math.min(
+      1,
+      distance / LEVER_PULL_DISTANCE
+    );
+
+    leverDrag.current.pull = pull;
+    setLeverPull(pull);
+  };
+
+  const finishLeverPull = (event) => {
+    if (
+      leverDrag.current.pointerId !==
+      event.pointerId
+    ) {
+      return;
+    }
+
+    if (
+      event.currentTarget.hasPointerCapture(
+        event.pointerId
+      )
+    ) {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId
+      );
+    }
+
+    const shouldRebuild =
+      leverDrag.current.pull >=
+      LEVER_TRIGGER_POINT;
+
+    leverDrag.current = {
+      pointerId: null,
+      startY: 0,
+      pull: 0,
+    };
+
+    setIsLeverDragging(false);
+
+    if (shouldRebuild) {
+      startJackpotRebuild();
+    } else {
+      setLeverPull(0);
+    }
+  };
+
+  const cancelLeverPull = (event) => {
+    if (
+      leverDrag.current.pointerId !==
+      event.pointerId
+    ) {
+      return;
+    }
+
+    leverDrag.current = {
+      pointerId: null,
+      startY: 0,
+      pull: 0,
+    };
+
+    setIsLeverDragging(false);
+    setLeverPull(0);
+  };
+
+  const handleLeverKeyDown = (event) => {
+    if (
+      event.key !== "Enter" &&
+      event.key !== " "
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    startJackpotRebuild();
   };
 
   return (
@@ -653,36 +801,90 @@ export default function MapView({
             <div className="map-status-actions">
               <div
                 className={`map-jackpot${
-                  isPullingLever ? " is-pulling" : ""
+                  isLeverDragging
+                    ? " is-dragging"
+                    : ""
+                }${
+                  isSpinning ? " is-spinning" : ""
                 }${
                   showCelebration
                     ? " is-celebrating"
                     : ""
                 }`}
+                style={{
+                  "--lever-angle": `${
+                    -18 + leverPull * 92
+                  }deg`,
+                }}
               >
                 <div className="map-jackpot-machine">
                   <span className="map-jackpot-kicker">
                     Vegas rebuild
                   </span>
 
-                  <div className="map-jackpot-window">
-                    <span aria-hidden="true">
-                      🎰
-                    </span>
+                  <div className="map-jackpot-display">
+                    <div
+                      className="map-jackpot-reels"
+                      aria-hidden="true"
+                    >
+                      {JACKPOT_REELS.map(
+                        (symbols, reelIndex) => (
+                          <div
+                            className={`map-jackpot-reel reel-${
+                              reelIndex + 1
+                            }`}
+                            key={`reel-${reelIndex}`}
+                          >
+                            <div className="map-jackpot-reel-strip">
+                              {symbols.map(
+                                (symbol, symbolIndex) => (
+                                  <span
+                                    key={`${reelIndex}-${symbolIndex}`}
+                                  >
+                                    {symbol}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
 
-                    <strong>Pull to rebuild</strong>
+                    <strong
+                      className="map-jackpot-message"
+                      aria-live="polite"
+                    >
+                      {isSpinning
+                        ? "Rebuilding..."
+                        : showCelebration
+                          ? "Jackpot!"
+                          : "Drag lever down"}
+                    </strong>
                   </div>
 
                   <button
                     className="map-jackpot-lever"
                     type="button"
-                    title="Pull the lever to rebuild the floor map"
-                    aria-label="Pull the lever to rebuild the floor map"
-                    onClick={triggerJackpotRebuild}
-                    disabled={isPullingLever}
+                    title="Drag the lever downward to rebuild the floor map"
+                    aria-label="Drag the lever downward to rebuild the floor map. Press Enter or Space as a keyboard alternative."
+                    onPointerDown={beginLeverPull}
+                    onPointerMove={moveLever}
+                    onPointerUp={finishLeverPull}
+                    onPointerCancel={cancelLeverPull}
+                    onKeyDown={handleLeverKeyDown}
+                    disabled={isSpinning}
                   >
-                    <span className="map-jackpot-shaft" />
-                    <span className="map-jackpot-knob" />
+                    <span
+                      className="map-jackpot-pull-arrow"
+                      aria-hidden="true"
+                    >
+                      PULL
+                    </span>
+                    <span className="map-jackpot-pivot" />
+                    <span className="map-jackpot-arm">
+                      <span className="map-jackpot-knob" />
+                    </span>
                   </button>
 
                   <div
