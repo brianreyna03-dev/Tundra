@@ -16,7 +16,7 @@ const JACKPOT_REELS = [
 ];
 
 const LEVER_TRIGGER_POINT = 0.72;
-const LEVER_PULL_DISTANCE = 82;
+const LEVER_PULL_DISTANCE = 96;
 
 function initialsOf(name) {
   return String(name || "")
@@ -812,9 +812,12 @@ export default function MapView({
                     : ""
                 }`}
                 style={{
-                  "--lever-angle": `${
-                    -18 + leverPull * 92
-                  }deg`,
+                  "--lever-arm-height": `${
+                    108 - leverPull * 68
+                  }px`,
+                  "--lever-knob-shift": `${
+                    leverPull * 2
+                  }px`,
                 }}
               >
                 <div className="map-jackpot-machine">
@@ -859,15 +862,15 @@ export default function MapView({
                         ? "Rebuilding..."
                         : showCelebration
                           ? "Jackpot!"
-                          : "Drag lever down"}
+                          : "Pull lever down"}
                     </strong>
                   </div>
 
                   <button
                     className="map-jackpot-lever"
                     type="button"
-                    title="Drag the lever downward to rebuild the floor map"
-                    aria-label="Drag the lever downward to rebuild the floor map. Press Enter or Space as a keyboard alternative."
+                    title="Pull the gold lever downward to rebuild the floor map"
+                    aria-label="Pull the gold lever downward to rebuild the floor map. Press Enter or Space as a keyboard alternative."
                     onPointerDown={beginLeverPull}
                     onPointerMove={moveLever}
                     onPointerUp={finishLeverPull}
