@@ -821,10 +821,6 @@ export default function MapView({
                 }}
               >
                 <div className="map-jackpot-machine">
-                  <span className="map-jackpot-kicker">
-                    Vegas rebuild
-                  </span>
-
                   <div className="map-jackpot-display">
                     <div
                       className="map-jackpot-reels"
@@ -878,12 +874,6 @@ export default function MapView({
                     onKeyDown={handleLeverKeyDown}
                     disabled={isSpinning}
                   >
-                    <span
-                      className="map-jackpot-pull-arrow"
-                      aria-hidden="true"
-                    >
-                      PULL
-                    </span>
                     <span className="map-jackpot-pivot" />
                     <span className="map-jackpot-arm">
                       <span className="map-jackpot-knob" />
