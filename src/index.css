@@ -2141,8 +2141,21 @@ button:disabled {
 }
 
 .map-statusbar button {
-  margin: 0 14px;
+  margin: 0;
   white-space: nowrap;
+}
+
+.map-status-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px !important;
+  border-right: 0 !important;
+}
+
+.map-status-actions .map-rebuild {
+  font-weight: 900;
 }
 
 .map-empty .map-build {
@@ -2505,9 +2518,13 @@ button:disabled {
     border-top: 1px solid var(--line);
   }
 
-  .map-statusbar button {
-    justify-self: stretch;
-    margin-block: 10px;
+  .map-status-actions {
+    justify-content: stretch;
+  }
+
+  .map-status-actions button {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .map-support-row {
@@ -2529,6 +2546,14 @@ button:disabled {
 
   .map-statusbar > div:first-child {
     border-top: 0;
+  }
+
+  .map-status-actions {
+    flex-direction: column;
+  }
+
+  .map-status-actions button {
+    width: 100%;
   }
 }
 
