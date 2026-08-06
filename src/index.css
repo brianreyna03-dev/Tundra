@@ -2149,13 +2149,256 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
   padding: 10px 14px !important;
   border-right: 0 !important;
 }
 
-.map-status-actions .map-rebuild {
+.map-jackpot {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.map-jackpot-machine {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 68px 8px 12px;
+  border: 1px solid #a67a19;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff3c2 0%, #ffd86a 52%, #f8bf34 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 4px 10px rgba(0, 0, 0, 0.14);
+  overflow: visible;
+}
+
+.map-jackpot-kicker {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  padding-right: 10px;
+  border-right: 1px solid rgba(104, 65, 0, 0.18);
+  color: #704b00;
+  font-size: 10px;
   font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.map-jackpot-window {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid rgba(82, 51, 0, 0.18);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fffefa 0%, #fff3cb 100%);
+  box-shadow: inset 0 1px 4px rgba(88, 59, 0, 0.12);
+}
+
+.map-jackpot-window span {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.map-jackpot-window strong {
+  display: block;
+  color: #513200;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.map-jackpot-lever {
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  display: block;
+  width: 44px;
+  height: 80px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.map-jackpot-lever:disabled {
+  cursor: default;
+}
+
+.map-jackpot-shaft {
+  position: absolute;
+  top: 16px;
+  left: 19px;
+  width: 6px;
+  height: 44px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #dfe5eb 0%, #9aa4af 100%);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.18);
+  transform-origin: 50% 8px;
+  transition: transform 0.25s ease;
+}
+
+.map-jackpot-knob {
+  position: absolute;
+  top: 4px;
+  left: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #fff5f8 0%, #ff7aa9 38%, #d81b60 100%);
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.28),
+    inset 0 1px 2px rgba(255, 255, 255, 0.55);
+  transform-origin: 50% 30px;
+  transition: transform 0.25s ease;
+}
+
+.map-jackpot.is-pulling .map-jackpot-shaft,
+.map-jackpot.is-pulling .map-jackpot-knob {
+  transform: rotate(28deg);
+}
+
+.map-jackpot-burst {
+  pointer-events: none;
+  position: absolute;
+  inset: -24px;
+  opacity: 0;
+}
+
+.map-jackpot.is-celebrating .map-jackpot-burst {
+  opacity: 1;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0;
+  transform: translate3d(-50%, 0, 0) rotate(0deg);
+}
+
+.map-jackpot.is-celebrating .confetti-piece {
+  animation: confetti-pop 1800ms ease-out forwards;
+}
+
+.cp-1 { --x: -148px; --y: 86px; --r: -310deg; background: #ff4d6d; animation-delay: 0ms; }
+.cp-2 { --x: -122px; --y: 104px; --r: -260deg; background: #13c2c2; animation-delay: 90ms; }
+.cp-3 { --x: -96px; --y: 130px; --r: -220deg; background: #ffd166; animation-delay: 40ms; }
+.cp-4 { --x: -72px; --y: 112px; --r: -190deg; background: #8338ec; animation-delay: 140ms; }
+.cp-5 { --x: -44px; --y: 136px; --r: -150deg; background: #fb5607; animation-delay: 60ms; }
+.cp-6 { --x: -18px; --y: 118px; --r: -120deg; background: #3a86ff; animation-delay: 120ms; }
+.cp-7 { --x: 12px; --y: 138px; --r: -90deg; background: #43aa8b; animation-delay: 35ms; }
+.cp-8 { --x: 40px; --y: 102px; --r: -60deg; background: #ef476f; animation-delay: 110ms; }
+.cp-9 { --x: 70px; --y: 128px; --r: -30deg; background: #ffbe0b; animation-delay: 70ms; }
+.cp-10 { --x: 102px; --y: 108px; --r: 0deg; background: #118ab2; animation-delay: 150ms; }
+.cp-11 { --x: 130px; --y: 88px; --r: 40deg; background: #ff006e; animation-delay: 10ms; }
+.cp-12 { --x: 154px; --y: 122px; --r: 70deg; background: #06d6a0; animation-delay: 130ms; }
+.cp-13 { --x: -132px; --y: 58px; --r: -250deg; background: #f15bb5; animation-delay: 180ms; }
+.cp-14 { --x: -62px; --y: 62px; --r: -130deg; background: #00bbf9; animation-delay: 200ms; }
+.cp-15 { --x: 0px; --y: 74px; --r: -10deg; background: #fee440; animation-delay: 170ms; }
+.cp-16 { --x: 64px; --y: 62px; --r: 130deg; background: #9b5de5; animation-delay: 210ms; }
+.cp-17 { --x: 118px; --y: 60px; --r: 220deg; background: #f3722c; animation-delay: 190ms; }
+.cp-18 { --x: 150px; --y: 54px; --r: 280deg; background: #90be6d; animation-delay: 230ms; }
+
+.firework {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  opacity: 0;
+}
+
+.firework::before,
+.firework::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.firework::before {
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      rgba(255, 208, 75, 1) 0deg 10deg,
+      rgba(255, 208, 75, 0) 10deg 20deg
+    );
+}
+
+.firework::after {
+  background:
+    repeating-conic-gradient(
+      from 8deg,
+      rgba(255, 94, 145, 0.95) 0deg 10deg,
+      rgba(255, 94, 145, 0) 10deg 20deg
+    );
+  transform: scale(0.75);
+}
+
+.map-jackpot.is-celebrating .firework {
+  animation: firework-burst 1200ms ease-out forwards;
+}
+
+.fw-1 {
+  top: -6px;
+  left: 6%;
+  animation-delay: 60ms;
+}
+
+.fw-2 {
+  top: -20px;
+  left: 45%;
+  animation-delay: 220ms;
+}
+
+.fw-3 {
+  top: -2px;
+  right: 12%;
+  animation-delay: 120ms;
+}
+
+@keyframes confetti-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -12px, 0) rotate(0deg) scale(0.65);
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--x)), var(--y), 0) rotate(var(--r)) scale(1);
+  }
+}
+
+@keyframes firework-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(4.8);
+  }
 }
 
 .map-empty .map-build {
@@ -2520,6 +2763,16 @@ button:disabled {
 
   .map-status-actions {
     justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  .map-jackpot {
+    flex: 1 1 100%;
+  }
+
+  .map-jackpot-machine {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .map-status-actions button {
@@ -2550,6 +2803,21 @@ button:disabled {
 
   .map-status-actions {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .map-jackpot-machine {
+    min-height: 66px;
+    padding-right: 62px;
+  }
+
+  .map-jackpot-kicker {
+    display: none;
+  }
+
+  .map-jackpot-window strong {
+    white-space: normal;
+    line-height: 1.15;
   }
 
   .map-status-actions button {
@@ -2561,6 +2829,7 @@ button:disabled {
   .map-panel-head,
   .map-filter-card,
   .map-statusbar button,
+  .map-jackpot,
   .map-support-row {
     display: none !important;
   }
