@@ -1,8 +1,8 @@
 export const TL_ZONE_SLOTS = [
   { key: "zone1", label: "ZONE 1", position: "Leader position 1" },
-  { key: "zone2a", label: "ZONE 2", position: "Leader position 2A" },
-  { key: "zone2b", label: "ZONE 2", position: "Leader position 2B" },
-  { key: "zone3", label: "ZONE 3", position: "Leader position 3" },
+  { key: "zone2a", label: "ZONE 2", position: "Leader position 2" },
+  { key: "zone2b", label: "ZONE 3", position: "Leader position 3" },
+  { key: "zone3", label: "ZONE 4", position: "Leader position 4" },
 ];
 
 export const TL_ZONE_KEYS = new Set(TL_ZONE_SLOTS.map((slot) => slot.key));
