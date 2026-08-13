@@ -89,7 +89,33 @@ export default function StationsView({ data, actions }) {
                   return (
                     <div className="stitem" key={station.id}>
                       <span className="idx">{String(index + 1).padStart(2, "0")}</span>
-                      <span className="snm">{station.name}</span>
+                      <input
+                        className="snm snm-input"
+                        type="text"
+                        defaultValue={station.name}
+                        aria-label={`Edit process name for ${station.name}`}
+                        title="Click to edit process name"
+                        onBlur={(event) => {
+                          const value = event.currentTarget.value.trim();
+                          if (!value) {
+                            event.currentTarget.value = station.name;
+                            return;
+                          }
+                          if (value !== station.name) {
+                            actions.renameStation(station.id, value);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.currentTarget.blur();
+                          }
+
+                          if (event.key === "Escape") {
+                            event.currentTarget.value = station.name;
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      />
                       <span className={"cov" + (coverage < 1 ? " thin" : "")}>
                         <span className="coverage-dot" />
                         {coverage < 1
