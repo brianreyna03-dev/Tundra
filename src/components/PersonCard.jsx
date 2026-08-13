@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import CertEditor from "./CertEditor.jsx";
 import { TL_ZONE_SLOTS, isTeamLeader } from "../lib/teamLeaders.js";
 
@@ -9,6 +10,25 @@ export default function PersonCard({
   onToggleOpen,
   actions,
 }) {
+  const [draftName, setDraftName] = useState(person.name);
+
+  useEffect(() => {
+    setDraftName(person.name);
+  }, [person.name]);
+
+  const saveName = () => {
+    const value = draftName.trim();
+
+    if (!value) {
+      setDraftName(person.name);
+      return;
+    }
+
+    if (value !== person.name) {
+      actions.renamePerson(person.id, value);
+    }
+  };
+
   const initials = person.name
     .split(/\s+/)
     .filter(Boolean)
@@ -34,7 +54,25 @@ export default function PersonCard({
         <div className="person-identity">
           <div className="avatar" aria-hidden="true">{initials || "TM"}</div>
           <div>
-            <div className="pname">{person.name}</div>
+            <input
+              className="pname pname-input"
+              type="text"
+              value={draftName}
+              aria-label={`Edit name for ${person.name}`}
+              title="Click to edit name"
+              onChange={(event) => setDraftName(event.target.value)}
+              onBlur={saveName}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+
+                if (event.key === "Escape") {
+                  setDraftName(person.name);
+                  event.currentTarget.blur();
+                }
+              }}
+            />
             <div className="person-meta">
               <span className={person.pto ? "attendance pto" : "attendance active"}>
                 {person.pto ? "PTO" : "On Shift"}
