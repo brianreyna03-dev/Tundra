@@ -245,16 +245,50 @@ function ProcessCell({
     ? nameFor(team, personId)
     : null;
 
+  const traineeIds = Array.isArray(
+    segment?.training?.[station.id]
+  )
+    ? segment.training[station.id]
+    : [];
+
+  const trainees = traineeIds.map((traineeId) => ({
+    id: traineeId,
+    name: nameFor(team, traineeId),
+  }));
+
+  const hasTraining = trainees.length > 0;
+  const titleParts = [station.name];
+
+  if (personName) {
+    titleParts.push(
+      hasTraining
+        ? `Trainer: ${personName}`
+        : `Assigned: ${personName}`
+    );
+  } else {
+    titleParts.push(
+      hasTraining
+        ? "Trainer required"
+        : "Coverage required"
+    );
+  }
+
+  if (hasTraining) {
+    titleParts.push(
+      `Training: ${trainees
+        .map((trainee) => trainee.name)
+        .join(", ")}`
+    );
+  }
+
   return (
     <div
       className={`map-process${zoneClass}${
         personName ? " is-staffed" : " is-open"
-      }${editing ? " is-editing" : ""}`}
-      title={`${station.name}${
-        personName
-          ? ` — ${personName}`
-          : " — Coverage required"
+      }${hasTraining ? " has-training" : ""}${
+        editing ? " is-editing" : ""
       }`}
+      title={titleParts.join(" — ")}
     >
       <div className="map-process-topline">
         <span className="map-code">{code}</span>
@@ -265,16 +299,28 @@ function ProcessCell({
       </div>
 
       {editing ? (
-        <AssignmentSelect
-          station={station}
-          segment={segment}
-          stations={stations}
-          team={team}
-          onAssign={onAssign}
-          compact
-        />
+        <div className="map-assignment-editor">
+          {hasTraining && (
+            <span className="map-role-label map-role-trainer">
+              Trainer
+            </span>
+          )}
+
+          <AssignmentSelect
+            station={station}
+            segment={segment}
+            stations={stations}
+            team={team}
+            onAssign={onAssign}
+            compact
+          />
+        </div>
       ) : personName ? (
-        <div className="map-assignee">
+        <div
+          className={`map-assignee${
+            hasTraining ? " is-trainer" : ""
+          }`}
+        >
           <span
             className="map-avatar"
             aria-hidden="true"
@@ -282,12 +328,55 @@ function ProcessCell({
             {initialsOf(personName)}
           </span>
 
-          <strong>{personName}</strong>
+          <span className="map-person-copy">
+            {hasTraining && (
+              <small className="map-role-label map-role-trainer">
+                Trainer
+              </small>
+            )}
+
+            <strong>{personName}</strong>
+          </span>
         </div>
       ) : (
-        <span className="map-uncovered">
-          Coverage required
+        <span
+          className={`map-uncovered${
+            hasTraining ? " trainer-required" : ""
+          }`}
+        >
+          {hasTraining
+            ? "Trainer required"
+            : "Coverage required"}
         </span>
+      )}
+
+      {hasTraining && (
+        <div
+          className="map-training-group"
+          aria-label={`Training at ${station.name}`}
+        >
+          <span className="map-role-label map-role-training">
+            Training
+          </span>
+
+          <div className="map-training-list">
+            {trainees.map((trainee) => (
+              <span
+                className="map-trainee"
+                key={trainee.id}
+              >
+                <span
+                  className="map-trainee-avatar"
+                  aria-hidden="true"
+                >
+                  {initialsOf(trainee.name)}
+                </span>
+
+                <strong>{trainee.name}</strong>
+              </span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -430,6 +519,17 @@ export default function MapView({
     ? Object.values(
         segment.assign || {}
       ).filter(Boolean).length
+    : 0;
+
+  const trainingCount = segment
+    ? Object.values(segment.training || {}).reduce(
+        (total, personIds) =>
+          total +
+          (Array.isArray(personIds)
+            ? personIds.length
+            : 0),
+        0
+      )
     : 0;
 
   const processProps = {
@@ -755,9 +855,9 @@ export default function MapView({
 
               <span>
                 Use the dropdown inside each
-                mapped process. A person selected
-                elsewhere in this quarter will be
-                moved here automatically.
+                mapped process. Stations with trainees
+                label the assigned member as Trainer and
+                show the trainee names underneath.
               </span>
             </div>
           )}
@@ -794,7 +894,8 @@ export default function MapView({
 
               <strong>
                 {filled}/{stations.length}{" "}
-                processes staffed
+                processes staffed · {trainingCount}{" "}
+                training
               </strong>
             </div>
 
@@ -1099,7 +1200,7 @@ export default function MapView({
                 ) : (
                   <span className="map-none">
                     All active members are
-                    assigned.
+                    assigned or training.
                   </span>
                 )}
               </div>
@@ -1122,43 +1223,81 @@ export default function MapView({
                         segment.assign?.[
                           station.id
                         ];
+                      const personName = personId
+                        ? nameFor(team, personId)
+                        : null;
+                      const traineeIds = Array.isArray(
+                        segment.training?.[station.id]
+                      )
+                        ? segment.training[station.id]
+                        : [];
+                      const hasTraining =
+                        traineeIds.length > 0;
 
                       return (
                         <div
                           key={station.id}
-                          className={
+                          className={`${
                             manualMode
-                              ? "is-editing"
+                              ? "is-editing "
                               : ""
-                          }
+                          }${
+                            hasTraining
+                              ? "has-training"
+                              : ""
+                          }`.trim()}
                         >
                           <span>
                             {station.name}
                           </span>
 
-                          {manualMode ? (
-                            <AssignmentSelect
-                              station={station}
-                              segment={segment}
-                              stations={
-                                stations
-                              }
-                              team={team}
-                              onAssign={
-                                onAssign
-                              }
-                              compact
-                            />
-                          ) : (
-                            <strong>
-                              {personId
-                                ? nameFor(
-                                    team,
-                                    personId
-                                  )
-                                : "Coverage required"}
-                            </strong>
-                          )}
+                          <div className="map-additional-assignment">
+                            {hasTraining && (
+                              <span className="map-role-label map-role-trainer">
+                                Trainer
+                              </span>
+                            )}
+
+                            {manualMode ? (
+                              <AssignmentSelect
+                                station={station}
+                                segment={segment}
+                                stations={
+                                  stations
+                                }
+                                team={team}
+                                onAssign={
+                                  onAssign
+                                }
+                                compact
+                              />
+                            ) : (
+                              <strong>
+                                {personName ||
+                                  (hasTraining
+                                    ? "Trainer required"
+                                    : "Coverage required")}
+                              </strong>
+                            )}
+
+                            {hasTraining && (
+                              <div className="map-additional-training">
+                                <span className="map-role-label map-role-training">
+                                  Training
+                                </span>
+                                <strong>
+                                  {traineeIds
+                                    .map((traineeId) =>
+                                      nameFor(
+                                        team,
+                                        traineeId
+                                      )
+                                    )
+                                    .join(", ")}
+                                </strong>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     }
