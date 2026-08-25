@@ -11,19 +11,36 @@ export default function PersonCard({
   actions,
 }) {
   const [draftName, setDraftName] = useState(person.name);
+  const [nameError, setNameError] = useState("");
 
   useEffect(() => {
     setDraftName(person.name);
+    setNameError("");
   }, [person.name]);
 
   const saveName = () => {
-    const value = draftName.trim();
+    const value = draftName.trim().replace(/\s+/g, " ");
 
     if (!value) {
       setDraftName(person.name);
+      setNameError("");
       return;
     }
 
+    const duplicate = team.some(
+      (candidate) =>
+        candidate.id !== person.id &&
+        candidate.name.trim().replace(/\s+/g, " ").toLocaleLowerCase() ===
+          value.toLocaleLowerCase()
+    );
+
+    if (duplicate) {
+      setDraftName(person.name);
+      setNameError("That name is already on the team.");
+      return;
+    }
+
+    setNameError("");
     if (value !== person.name) {
       actions.renamePerson(person.id, value);
     }
@@ -59,8 +76,13 @@ export default function PersonCard({
               type="text"
               value={draftName}
               aria-label={`Edit name for ${person.name}`}
+              aria-invalid={nameError ? "true" : "false"}
+              aria-describedby={nameError ? `person-name-error-${person.id}` : undefined}
               title="Click to edit name"
-              onChange={(event) => setDraftName(event.target.value)}
+              onChange={(event) => {
+                setDraftName(event.target.value);
+                if (nameError) setNameError("");
+              }}
               onBlur={saveName}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -73,6 +95,15 @@ export default function PersonCard({
                 }
               }}
             />
+            {nameError && (
+              <div
+                id={`person-name-error-${person.id}`}
+                className="duplicate-name-error person-name-error"
+                role="alert"
+              >
+                {nameError}
+              </div>
+            )}
             <div className="person-meta">
               <span className={person.pto ? "attendance pto" : "attendance active"}>
                 {person.pto ? "PTO" : "On Shift"}
