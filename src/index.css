@@ -3940,3 +3940,155 @@ input.snm-input:focus {
 input[aria-invalid="true"] {
   border-color: #d92d20;
 }
+
+/* ============================================================
+   Floor map trainer / trainee visualization
+   ============================================================ */
+.map-process.has-training {
+  min-height: 118px;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
+  box-shadow: inset 0 -3px 0 #7896b8;
+}
+
+.map-process.has-training.is-open {
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%);
+  box-shadow: inset 0 -3px 0 #c88739;
+}
+
+.map-assignment-editor {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 7px;
+}
+
+.map-person-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.map-role-label {
+  display: block;
+  color: #68717c;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0.11em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.map-role-trainer {
+  color: #17603a;
+}
+
+.map-role-training {
+  color: #315f91;
+}
+
+.map-assignee.is-trainer .map-avatar {
+  border-color: #78aa8d;
+  box-shadow: inset 0 0 0 2px #ffffff;
+}
+
+.map-training-group {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px dashed #b9c7d6;
+}
+
+.map-training-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.map-trainee {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 2px 6px 2px 3px;
+  border: 1px solid #b8cbe0;
+  border-radius: 999px;
+  background: #edf5ff;
+  color: #234e7d;
+}
+
+.map-trainee-avatar {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #d7e8fb;
+  color: #315f91;
+  font-size: 6px;
+  font-weight: 950;
+}
+
+.map-trainee strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-uncovered.trainer-required {
+  border-left-color: #b26b16;
+  background: #fff3df;
+  color: #8a520f;
+}
+
+.map-additional-list > div.has-training {
+  align-items: flex-start;
+  border-left: 3px solid #7896b8;
+  background: #f6f9fd;
+}
+
+.map-additional-assignment {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  min-width: 190px;
+}
+
+.map-additional-training {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 7px;
+  max-width: 340px;
+}
+
+.map-additional-training strong {
+  color: #315f91;
+  font-size: 10px;
+}
+
+@media (max-width: 540px) {
+  .map-additional-list > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .map-additional-assignment {
+    justify-items: stretch;
+    min-width: 0;
+  }
+
+  .map-additional-training {
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+}
