@@ -49,6 +49,7 @@ export function createEmptySchedule(stations, team) {
     segments: SCHEDULE_SEGMENTS.map((segment) => ({
       ...segment,
       assign: Object.fromEntries(stations.map((station) => [station.id, null])),
+      training: Object.fromEntries(stations.map((station) => [station.id, []])),
       float: [...float],
       filled: 0,
       manuallyEdited: false,
@@ -154,6 +155,10 @@ export function generateSchedule(stations, team) {
       assign[station.id] = personByStation[index];
     });
 
+    const training = Object.fromEntries(
+      stations.map((station) => [station.id, []])
+    );
+
     const float = [];
     active.forEach((person, index) => {
       if (match[index] < 0) float.push(person.id);
@@ -164,6 +169,7 @@ export function generateSchedule(stations, team) {
       label: seg.label,
       full: seg.full,
       assign,
+      training,
       float,
       filled: personByStation.filter(Boolean).length,
       manuallyEdited: false,
