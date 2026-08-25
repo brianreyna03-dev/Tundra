@@ -8,6 +8,16 @@ import {
 } from "../lib/scheduler.js";
 import { TL_ZONE_KEYS } from "../lib/teamLeaders.js";
 
+function normalizePersonName(name) {
+  return String(name ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function personNameKey(name) {
+  return normalizePersonName(name).toLocaleLowerCase();
+}
+
 function activeProductionTeam(team) {
   return team.filter((person) => !person.pto && person.role !== "tl");
 }
@@ -175,11 +185,19 @@ function normalize(d) {
 function reducer(state, action) {
   switch (action.type) {
     case "ADD_PERSON": {
+      const name = normalizePersonName(action.name);
+      if (!name) return state;
+
+      const duplicate = state.team.some(
+        (person) => personNameKey(person.name) === personNameKey(name)
+      );
+      if (duplicate) return state;
+
       const nextTeam = [
         ...state.team,
         {
           id: uid(),
-          name: action.name,
+          name,
           pto: false,
           role: action.role === "tl" ? "tl" : "member",
           // Zone assignment is intentionally only changed in Skills / Certs.
@@ -203,13 +221,24 @@ function reducer(state, action) {
       };
     }
 
-    case "RENAME_PERSON":
+    case "RENAME_PERSON": {
+      const name = normalizePersonName(action.name);
+      if (!name) return state;
+
+      const duplicate = state.team.some(
+        (person) =>
+          person.id !== action.id &&
+          personNameKey(person.name) === personNameKey(name)
+      );
+      if (duplicate) return state;
+
       return {
         ...state,
         team: state.team.map((person) =>
-          person.id === action.id ? { ...person, name: action.name } : person
+          person.id === action.id ? { ...person, name } : person
         ),
       };
+    }
 
     case "SET_PTO": {
       const nextTeam = state.team.map((person) =>
@@ -264,6 +293,16 @@ function reducer(state, action) {
         ),
       };
     }
+
+    case "CLEAR_TL_ZONES":
+      return {
+        ...state,
+        team: state.team.map((person) =>
+          person.role === "tl" && person.tlZone
+            ? { ...person, tlZone: null }
+            : person
+        ),
+      };
 
     case "TOGGLE_CERT": {
       const nextTeam = state.team.map((person) => {
@@ -462,6 +501,7 @@ export function useShiftData() {
         dispatch({ type: "SET_TEAM_ROLE", id, role }),
       setTLZone: (id, tlZone) =>
         dispatch({ type: "SET_TL_ZONE", id, tlZone }),
+      clearTLZones: () => dispatch({ type: "CLEAR_TL_ZONES" }),
       toggleCert: (personId, stationId) =>
         dispatch({ type: "TOGGLE_CERT", personId, stationId }),
       setCategoryCerts: (personId, category, on) =>
