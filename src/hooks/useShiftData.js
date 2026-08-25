@@ -56,11 +56,34 @@ function reconcileSchedule(schedule, stations, team) {
       if (valid) usedPeople.add(person.id);
     });
 
+    const training = {};
+    const trainingPeople = new Set();
+
+    stations.forEach((station) => {
+      const requested = Array.isArray(segment.training?.[station.id])
+        ? segment.training[station.id]
+        : [];
+
+      training[station.id] = requested.filter((personId) => {
+        const valid =
+          activeById.has(personId) &&
+          !usedPeople.has(personId) &&
+          !trainingPeople.has(personId);
+
+        if (valid) trainingPeople.add(personId);
+        return valid;
+      });
+    });
+
     return {
       ...segment,
       assign,
+      training,
       float: active
-        .filter((person) => !usedPeople.has(person.id))
+        .filter(
+          (person) =>
+            !usedPeople.has(person.id) && !trainingPeople.has(person.id)
+        )
         .map((person) => person.id),
       filled: usedPeople.size,
     };
@@ -97,6 +120,14 @@ function assignPerson(schedule, stations, team, segmentKey, stationId, personId)
         segment.assign?.[candidate.id] || null,
       ])
     );
+    const training = Object.fromEntries(
+      stations.map((candidate) => [
+        candidate.id,
+        Array.isArray(segment.training?.[candidate.id])
+          ? [...segment.training[candidate.id]]
+          : [],
+      ])
+    );
 
     // One person can occupy only one process during a quarter. Selecting a
     // person who is already placed elsewhere moves them to the new station.
@@ -106,16 +137,28 @@ function assignPerson(schedule, stations, team, segmentKey, stationId, personId)
           assign[candidateStationId] = null;
         }
       });
+
+      Object.keys(training).forEach((candidateStationId) => {
+        training[candidateStationId] = training[candidateStationId].filter(
+          (candidatePersonId) => candidatePersonId !== personId
+        );
+      });
     }
 
     assign[stationId] = personId || null;
 
     const assignedPeople = new Set(Object.values(assign).filter(Boolean));
+    const trainingPeople = new Set(Object.values(training).flat());
     return {
       ...segment,
       assign,
+      training,
       float: active
-        .filter((candidate) => !assignedPeople.has(candidate.id))
+        .filter(
+          (candidate) =>
+            !assignedPeople.has(candidate.id) &&
+            !trainingPeople.has(candidate.id)
+        )
         .map((candidate) => candidate.id),
       filled: assignedPeople.size,
       manuallyEdited: true,
@@ -128,6 +171,110 @@ function assignPerson(schedule, stations, team, segmentKey, stationId, personId)
     manuallyEditedAt: Date.now(),
     segments,
     stats: scheduleStats(stations, team),
+  };
+}
+
+function setTrainingPerson(
+  schedule,
+  stations,
+  team,
+  segmentKey,
+  stationId,
+  personId,
+  isTraining
+) {
+  if (!schedule || !Array.isArray(schedule.segments)) return schedule;
+
+  const station = stations.find((candidate) => candidate.id === stationId);
+  if (!station) return schedule;
+
+  const active = activeProductionTeam(team);
+  const activeIds = new Set(active.map((person) => person.id));
+  if (isTraining && !activeIds.has(personId)) return schedule;
+
+  const segments = schedule.segments.map((segment) => {
+    if (segment.key !== segmentKey) return segment;
+
+    const assign = Object.fromEntries(
+      stations.map((candidate) => [
+        candidate.id,
+        segment.assign?.[candidate.id] || null,
+      ])
+    );
+    const assignedPeople = new Set(Object.values(assign).filter(Boolean));
+
+    // Training is only available to active team members who are not already
+    // covering a production station during the same quarter/overtime period.
+    if (isTraining && assignedPeople.has(personId)) return segment;
+
+    const training = Object.fromEntries(
+      stations.map((candidate) => [
+        candidate.id,
+        Array.isArray(segment.training?.[candidate.id])
+          ? [...segment.training[candidate.id]]
+          : [],
+      ])
+    );
+
+    // A member can train at only one process in a period. Adding them to a new
+    // process moves their training assignment there.
+    Object.keys(training).forEach((candidateStationId) => {
+      training[candidateStationId] = training[candidateStationId].filter(
+        (candidatePersonId) => candidatePersonId !== personId
+      );
+    });
+
+    if (isTraining) {
+      training[stationId] = [...training[stationId], personId];
+    }
+
+    const trainingPeople = new Set(Object.values(training).flat());
+
+    return {
+      ...segment,
+      assign,
+      training,
+      float: active
+        .filter(
+          (candidate) =>
+            !assignedPeople.has(candidate.id) &&
+            !trainingPeople.has(candidate.id)
+        )
+        .map((candidate) => candidate.id),
+      filled: assignedPeople.size,
+      manuallyEdited: true,
+    };
+  });
+
+  return {
+    ...schedule,
+    mode: schedule.mode === "manual" ? "manual" : "adjusted",
+    manuallyEditedAt: Date.now(),
+    segments,
+    stats: scheduleStats(stations, team),
+  };
+}
+
+function preserveTraining(nextSchedule, previousSchedule) {
+  if (
+    !nextSchedule ||
+    !Array.isArray(nextSchedule.segments) ||
+    !previousSchedule ||
+    !Array.isArray(previousSchedule.segments)
+  ) {
+    return nextSchedule;
+  }
+
+  const previousByKey = new Map(
+    previousSchedule.segments.map((segment) => [segment.key, segment])
+  );
+
+  return {
+    ...nextSchedule,
+    segments: nextSchedule.segments.map((segment) => ({
+      ...segment,
+      training: previousByKey.get(segment.key)?.training || segment.training,
+    })),
   };
 }
 
@@ -418,6 +565,20 @@ function reducer(state, action) {
         ),
       };
 
+    case "SET_TRAINING":
+      return {
+        ...state,
+        schedule: setTrainingPerson(
+          state.schedule,
+          state.stations,
+          state.team,
+          action.segmentKey,
+          action.stationId,
+          action.personId,
+          action.isTraining
+        ),
+      };
+
     case "SET_SCHEDULE":
       return {
         ...state,
@@ -520,10 +681,21 @@ export function useShiftData() {
           stationId,
           personId,
         }),
+      setTraining: (segmentKey, stationId, personId, isTraining) =>
+        dispatch({
+          type: "SET_TRAINING",
+          segmentKey,
+          stationId,
+          personId,
+          isTraining,
+        }),
       generate: () =>
         dispatch({
           type: "SET_SCHEDULE",
-          schedule: generateSchedule(state.stations, state.team),
+          schedule: preserveTraining(
+            generateSchedule(state.stations, state.team),
+            state.schedule
+          ),
         }),
       startManual: () =>
         dispatch({
@@ -532,7 +704,7 @@ export function useShiftData() {
         }),
       loadData: (data) => dispatch({ type: "LOAD_DATA", data }),
     }),
-    [state.stations, state.team]
+    [state.schedule, state.stations, state.team]
   );
 
   return { data: state, actions, storageOK, loading };
