@@ -43,11 +43,98 @@ function Slot({
   );
 }
 
+function TrainingCell({
+  station,
+  segment,
+  team,
+  editing,
+  onSetTraining,
+}) {
+  const traineeIds = Array.isArray(segment?.training?.[station.id])
+    ? segment.training[station.id]
+    : [];
+
+  const assignedIds = new Set(
+    Object.values(segment?.assign || {}).filter(Boolean)
+  );
+  const trainingIds = new Set(
+    Object.values(segment?.training || {}).flatMap((ids) =>
+      Array.isArray(ids) ? ids : []
+    )
+  );
+
+  const available = team
+    .filter((person) => person.role !== "tl")
+    .filter((person) => !person.pto)
+    .filter((person) => !assignedIds.has(person.id))
+    .filter((person) => !trainingIds.has(person.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (!editing && !traineeIds.length) {
+    return <span className="training-empty">—</span>;
+  }
+
+  return (
+    <div className={`training-cell${editing ? " is-editing" : ""}`}>
+      {traineeIds.length > 0 && (
+        <div className="training-list">
+          {traineeIds.map((personId) => (
+            <span className="training-pill" key={personId}>
+              <span>{nameFor(team, personId)}</span>
+              {editing && (
+                <button
+                  type="button"
+                  className="training-remove"
+                  onClick={() =>
+                    onSetTraining(segment.key, station.id, personId, false)
+                  }
+                  aria-label={`Remove ${nameFor(team, personId)} from training at ${station.name} for ${segment.label}`}
+                  title="Remove trainee"
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <label className="training-add-wrap">
+          <span className="sr-only">
+            Add a trainee to {station.name} for {segment.label}
+          </span>
+          <select
+            className="training-add-select"
+            value=""
+            onChange={(event) => {
+              const personId = event.target.value;
+              if (personId) {
+                onSetTraining(segment.key, station.id, personId, true);
+              }
+            }}
+          >
+            <option value="">
+              {available.length ? "+ Add trainee" : "No unassigned members"}
+            </option>
+            {available.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+}
+
 export default function BoardView({
   data,
   onGenerate,
   onStartManual,
   onAssign,
+  onSetTraining,
 }) {
   const { stations, team, schedule } = data;
   const [manualMode, setManualMode] = useState(false);
@@ -191,6 +278,8 @@ export default function BoardView({
           <span>
             Choose an on-shift, certified member in any station cell. Selecting
             someone already placed in that quarter moves them to the new station.
+            Use the Training row under a process to place any other unassigned
+            team member there as a trainee for that period.
           </span>
         </div>
       )}
@@ -250,33 +339,65 @@ export default function BoardView({
               {rows.map((station, index) => {
                 delay += 16;
                 return (
-                  <div
-                    className="srow reveal"
-                    style={{
-                      animationDelay: `${delay}ms`,
-                      "--seg-count": segments.length,
-                    }}
-                    key={station.id}
-                  >
-                    <div className="stname">
-                      <span className="process-number">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      {station.name}
-                    </div>
-                    {segments.map((segment) => (
-                      <div className={cellClass(segment)} key={segment.key}>
-                        <Slot
-                          personId={segment.assign[station.id]}
-                          team={team}
-                          editing={manualMode}
-                          station={station}
-                          segment={segment}
-                          stations={stations}
-                          onAssign={onAssign}
-                        />
+                  <div className="station-board-group" key={station.id}>
+                    <div
+                      className="srow reveal"
+                      style={{
+                        animationDelay: `${delay}ms`,
+                        "--seg-count": segments.length,
+                      }}
+                    >
+                      <div className="stname">
+                        <span className="process-number">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        {station.name}
                       </div>
-                    ))}
+                      {segments.map((segment) => (
+                        <div className={cellClass(segment)} key={segment.key}>
+                          <Slot
+                            personId={segment.assign[station.id]}
+                            team={team}
+                            editing={manualMode}
+                            station={station}
+                            segment={segment}
+                            stations={stations}
+                            onAssign={onAssign}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      className="training-row reveal"
+                      style={{
+                        animationDelay: `${delay + 8}ms`,
+                        "--seg-count": segments.length,
+                      }}
+                    >
+                      <div className="training-label">
+                        <span className="training-label-mark">T</span>
+                        <span>
+                          <strong>Training</strong>
+                          <small>Unassigned members</small>
+                        </span>
+                      </div>
+                      {segments.map((segment) => (
+                        <div
+                          className={`training-slot${
+                            segment.key === "ot" ? " training-slot-ot" : ""
+                          }`}
+                          key={segment.key}
+                        >
+                          <TrainingCell
+                            station={station}
+                            segment={segment}
+                            team={team}
+                            editing={manualMode}
+                            onSetTraining={onSetTraining}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -311,8 +432,8 @@ export default function BoardView({
 
       <p className="hint board-hint">
         {manualMode
-          ? "Manual changes save automatically. Only on-shift members certified for that process appear in each menu."
-          : "Rebuilding reshuffles assignments while preserving certification rules."}
+          ? "Manual changes save automatically. Production menus require certification; Training menus show active team members who are not assigned anywhere else in that period."
+          : "Rebuilding reshuffles production assignments while preserving certification rules. Training assignments stay attached to unassigned members when possible."}
         <button className="btn ghost sm" onClick={() => window.print()}>
           Print / Post Board
         </button>
