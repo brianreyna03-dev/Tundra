@@ -6,21 +6,59 @@ import { isTeamLeader } from "../lib/teamLeaders.js";
 export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("member");
+  const [nameError, setNameError] = useState("");
 
   const leaders = data.team.filter(isTeamLeader);
+  const members = data.team.filter((person) => !isTeamLeader(person));
+  const hasAssignedLeaderZones = leaders.some((person) => person.tlZone);
 
   const add = () => {
-    const value = name.trim();
+    const value = name.trim().replace(/\s+/g, " ");
     if (!value) return;
+
+    const duplicate = data.team.some(
+      (person) =>
+        person.name.trim().replace(/\s+/g, " ").toLocaleLowerCase() ===
+        value.toLocaleLowerCase()
+    );
+
+    if (duplicate) {
+      setNameError("That name is already on the team.");
+      return;
+    }
+
     actions.addPerson(value, role);
     setName("");
+    setNameError("");
   };
 
-  const activeMembers = data.team.filter(
-    (person) => !person.pto && !isTeamLeader(person)
-  ).length;
+  const clearAllLeaderZones = () => {
+    if (!hasAssignedLeaderZones) return;
+
+    const confirmed = window.confirm(
+      "Clear all Team Leader zone assignments? Team Leaders and certifications will stay in place."
+    );
+
+    if (confirmed) actions.clearTLZones();
+  };
+
+  const activeMembers = members.filter((person) => !person.pto).length;
   const activeLeaders = leaders.filter((person) => !person.pto).length;
   const onPto = data.team.filter((person) => person.pto).length;
+
+  const renderPerson = (person) => (
+    <PersonCard
+      key={person.id}
+      person={person}
+      team={data.team}
+      stations={data.stations}
+      isOpen={openCertId === person.id}
+      onToggleOpen={() =>
+        setOpenCertId(openCertId === person.id ? null : person.id)
+      }
+      actions={actions}
+    />
+  );
 
   return (
     <>
@@ -55,7 +93,12 @@ export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
             type="text"
             placeholder="Team member name"
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            aria-invalid={nameError ? "true" : "false"}
+            aria-describedby={nameError ? "team-name-error" : undefined}
+            onChange={(event) => {
+              setName(event.target.value);
+              if (nameError) setNameError("");
+            }}
             onKeyDown={(event) => event.key === "Enter" && add()}
           />
           <select
@@ -72,32 +115,62 @@ export default function TeamView({ data, actions, openCertId, setOpenCertId }) {
           >
             Add {role === "tl" ? "TL" : "Member"}
           </button>
+          {nameError && (
+            <div id="team-name-error" className="duplicate-name-error" role="alert">
+              {nameError}
+            </div>
+          )}
         </div>
       </div>
 
-      {data.team.length === 0 ? (
-        <div className="empty">
-          <div className="empty-symbol">TM</div>
-          <div className="big">No team members loaded</div>
-          <div>Add the Unit Plant roster above, then assign certifications.</div>
+      <section className="roster-section leader-roster-section" aria-labelledby="team-leaders-heading">
+        <div className="roster-section-head">
+          <div>
+            <span className="section-kicker">Leadership Roster</span>
+            <h3 id="team-leaders-heading">Team Leaders</h3>
+            <p>{leaders.length} team leader{leaders.length === 1 ? "" : "s"}</p>
+          </div>
+          <button
+            className="btn ghost sm clear-zones-btn"
+            type="button"
+            disabled={!hasAssignedLeaderZones}
+            onClick={clearAllLeaderZones}
+            title={
+              hasAssignedLeaderZones
+                ? "Clear every Team Leader zone assignment"
+                : "No Team Leader zones are currently assigned"
+            }
+          >
+            Clear All Zones
+          </button>
         </div>
-      ) : (
-        <div className="roster">
-          {data.team.map((person) => (
-            <PersonCard
-              key={person.id}
-              person={person}
-              team={data.team}
-              stations={data.stations}
-              isOpen={openCertId === person.id}
-              onToggleOpen={() =>
-                setOpenCertId(openCertId === person.id ? null : person.id)
-              }
-              actions={actions}
-            />
-          ))}
+
+        {leaders.length === 0 ? (
+          <div className="roster-empty">
+            No Team Leaders added yet. Add one above or change a Team Member&apos;s role.
+          </div>
+        ) : (
+          <div className="roster roster-leaders">{leaders.map(renderPerson)}</div>
+        )}
+      </section>
+
+      <section className="roster-section" aria-labelledby="team-members-heading">
+        <div className="roster-section-head">
+          <div>
+            <span className="section-kicker">Production Roster</span>
+            <h3 id="team-members-heading">Team Members</h3>
+            <p>{members.length} team member{members.length === 1 ? "" : "s"}</p>
+          </div>
         </div>
-      )}
+
+        {members.length === 0 ? (
+          <div className="roster-empty">
+            No Team Members added yet. Add one above or change a Team Leader&apos;s role.
+          </div>
+        ) : (
+          <div className="roster">{members.map(renderPerson)}</div>
+        )}
+      </section>
 
       <p className="hint">
         Team leaders stay out of automatic station assignments. Any number of TLs
