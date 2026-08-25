@@ -191,6 +191,11 @@ function ProcessCell({
   team,
   editing,
   onAssign,
+  movingPersonId,
+  dropTargetStationId,
+  onFloaterDrop,
+  onFloaterDropRejected,
+  onDropTargetChange,
   kind = "station",
   zone,
 }) {
@@ -239,6 +244,18 @@ function ProcessCell({
     );
   }
 
+  const movingPerson = movingPersonId
+    ? team.find((person) => person.id === movingPersonId)
+    : null;
+  const canAcceptMovingPerson = Boolean(
+    movingPerson &&
+      movingPerson.role !== "tl" &&
+      !movingPerson.pto &&
+      movingPerson.certs.includes(station.id)
+  );
+  const isDropTarget =
+    dropTargetStationId === station.id && canAcceptMovingPerson;
+
   const personId = segment?.assign?.[station.id];
 
   const personName = personId
@@ -281,15 +298,90 @@ function ProcessCell({
     );
   }
 
+  const handleFloaterPlacement = () => {
+    if (!movingPerson) return;
+
+    if (!canAcceptMovingPerson) {
+      onFloaterDropRejected?.(station, movingPerson);
+      return;
+    }
+
+    onFloaterDrop?.(station, movingPerson);
+  };
+
+  const handleCellClick = (event) => {
+    if (!movingPersonId) return;
+    if (event.target.closest("select, button")) return;
+    handleFloaterPlacement();
+  };
+
+  const handleCellKeyDown = (event) => {
+    if (!movingPersonId || (event.key !== "Enter" && event.key !== " ")) {
+      return;
+    }
+
+    event.preventDefault();
+    handleFloaterPlacement();
+  };
+
   return (
     <div
       className={`map-process${zoneClass}${
         personName ? " is-staffed" : " is-open"
       }${hasTraining ? " has-training" : ""}${
         editing ? " is-editing" : ""
-      }`}
+      }${movingPerson ? " is-drop-option" : ""}${
+        movingPerson && !canAcceptMovingPerson ? " is-drop-ineligible" : ""
+      }${isDropTarget ? " is-drop-target" : ""}`}
       title={titleParts.join(" — ")}
+      role={movingPersonId ? "button" : undefined}
+      tabIndex={movingPersonId ? 0 : undefined}
+      aria-label={
+        movingPerson
+          ? `${station.name}. ${
+              canAcceptMovingPerson
+                ? `Place ${movingPerson.name} here`
+                : `${movingPerson.name} is not certified for this station`
+            }`
+          : undefined
+      }
+      onClick={handleCellClick}
+      onKeyDown={handleCellKeyDown}
+      onDragEnter={(event) => {
+        if (!movingPersonId) return;
+        event.preventDefault();
+        if (canAcceptMovingPerson) onDropTargetChange?.(station.id);
+      }}
+      onDragOver={(event) => {
+        if (!movingPersonId) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = canAcceptMovingPerson ? "move" : "none";
+        if (canAcceptMovingPerson) onDropTargetChange?.(station.id);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          onDropTargetChange?.(null);
+        }
+      }}
+      onDrop={(event) => {
+        if (!movingPersonId) return;
+        event.preventDefault();
+        onDropTargetChange?.(null);
+        handleFloaterPlacement();
+      }}
     >
+      {movingPerson && (
+        <span
+          className={`map-drop-hint${
+            canAcceptMovingPerson ? " is-eligible" : ""
+          }`}
+          aria-hidden="true"
+        >
+          {canAcceptMovingPerson
+            ? `Drop ${movingPerson.name.split(/\s+/)[0]}`
+            : "Not certified"}
+        </span>
+      )}
       <div className="map-process-topline">
         <span className="map-code">{code}</span>
 
@@ -395,6 +487,18 @@ export default function MapView({
 
   const [manualMode, setManualMode] =
     useState(false);
+
+  const [draggedFloaterId, setDraggedFloaterId] =
+    useState(null);
+
+  const [selectedFloaterId, setSelectedFloaterId] =
+    useState(null);
+
+  const [dropTargetStationId, setDropTargetStationId] =
+    useState(null);
+
+  const [placementMessage, setPlacementMessage] =
+    useState("");
 
   const [leverPull, setLeverPull] =
     useState(0);
@@ -532,13 +636,48 @@ export default function MapView({
       )
     : 0;
 
+  const movingFloaterId = draggedFloaterId || selectedFloaterId;
+  const movingFloater = movingFloaterId
+    ? team.find((person) => person.id === movingFloaterId)
+    : null;
+
+  const placeFloaterAtStation = (station, person) => {
+    if (!segment || !station || !person) return;
+
+    onAssign(segment.key, station.id, person.id);
+    setDraggedFloaterId(null);
+    setSelectedFloaterId(null);
+    setDropTargetStationId(null);
+    setPlacementMessage(`${person.name} moved to ${station.name}.`);
+  };
+
+  const rejectFloaterAtStation = (station, person) => {
+    if (!station || !person) return;
+    setDropTargetStationId(null);
+    setPlacementMessage(
+      `${person.name} is not certified for ${station.name}.`
+    );
+  };
+
   const processProps = {
     segment,
     stations,
     team,
     editing: manualMode,
     onAssign,
+    movingPersonId: movingFloaterId,
+    dropTargetStationId,
+    onFloaterDrop: placeFloaterAtStation,
+    onFloaterDropRejected: rejectFloaterAtStation,
+    onDropTargetChange: setDropTargetStationId,
   };
+
+  useEffect(() => {
+    setDraggedFloaterId(null);
+    setSelectedFloaterId(null);
+    setDropTargetStationId(null);
+    setPlacementMessage("");
+  }, [segment?.key]);
 
   useEffect(() => {
     return () => {
@@ -854,10 +993,10 @@ export default function MapView({
               </strong>
 
               <span>
-                Use the dropdown inside each
-                mapped process. Stations with trainees
-                label the assigned member as Trainer and
-                show the trainee names underneath.
+                Drag a floater onto a highlighted certified station, or click a
+                floater and then click a highlighted station. Dropdowns are still
+                available for direct assignment. Trainer and trainee labels stay
+                visible on the map.
               </span>
             </div>
           )}
@@ -1158,7 +1297,9 @@ export default function MapView({
             </div>
           </div>
 
-          <section className="map-support-row">
+          <section
+            className={`map-support-row${additional.length ? "" : " is-single"}`}
+          >
             <div className="map-support-card">
               <span className="section-kicker">
                 Unassigned &amp; Available
@@ -1168,41 +1309,84 @@ export default function MapView({
                 {segment.label} Floaters
               </h3>
 
-              <div className="map-floater-list">
-                {segment.float?.length ? (
-                  segment.float.map(
-                    (personId) => (
-                      <span
-                        className="memchip"
-                        key={personId}
-                      >
-                        <span
-                          className="mem-ini"
-                          aria-hidden="true"
-                        >
-                          {initialsOf(
-                            nameFor(
-                              team,
-                              personId
-                            )
-                          )}
-                        </span>
+              <div className="map-floater-help">
+                <span className="map-drag-icon" aria-hidden="true">↗</span>
+                <span>
+                  Drag a name to a station. Or click a name, then click a
+                  highlighted station.
+                </span>
+              </div>
 
-                        <span className="mem-name">
-                          {nameFor(
-                            team,
-                            personId
-                          )}
+              <div
+                className={`map-floater-list${movingFloaterId ? " has-selection" : ""}`}
+              >
+                {segment.float?.length ? (
+                  segment.float.map((personId) => {
+                    const personName = nameFor(team, personId);
+                    const selected = movingFloaterId === personId;
+
+                    return (
+                      <button
+                        className={`map-floater-chip${selected ? " is-selected" : ""}`}
+                        key={personId}
+                        type="button"
+                        draggable
+                        aria-pressed={selected}
+                        title={`Drag ${personName} to a certified station`}
+                        onClick={() => {
+                          setDraggedFloaterId(null);
+                          setDropTargetStationId(null);
+                          setSelectedFloaterId((current) =>
+                            current === personId ? null : personId
+                          );
+                          setPlacementMessage(
+                            selected
+                              ? "Placement selection cleared."
+                              : `${personName} selected. Choose a highlighted station.`
+                          );
+                        }}
+                        onDragStart={(event) => {
+                          setSelectedFloaterId(null);
+                          setDraggedFloaterId(personId);
+                          setPlacementMessage(
+                            `Moving ${personName}. Drop on a highlighted station.`
+                          );
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", personId);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedFloaterId(null);
+                          setDropTargetStationId(null);
+                        }}
+                      >
+                        <span className="map-floater-grip" aria-hidden="true">
+                          ⋮⋮
                         </span>
-                      </span>
-                    )
-                  )
+                        <span className="mem-ini" aria-hidden="true">
+                          {initialsOf(personName)}
+                        </span>
+                        <span className="mem-name">{personName}</span>
+                        <span className="map-floater-action" aria-hidden="true">
+                          Drag
+                        </span>
+                      </button>
+                    );
+                  })
                 ) : (
                   <span className="map-none">
-                    All active members are
-                    assigned or training.
+                    All active members are assigned or training.
                   </span>
                 )}
+              </div>
+
+              <div
+                className="map-placement-message"
+                aria-live="polite"
+              >
+                {placementMessage ||
+                  (movingFloater
+                    ? `${movingFloater.name} is ready to place.`
+                    : "Certified stations will highlight while you move a floater.")}
               </div>
             </div>
 
@@ -1234,18 +1418,88 @@ export default function MapView({
                       const hasTraining =
                         traineeIds.length > 0;
 
+                      const movingPerson = movingFloaterId
+                        ? team.find((person) => person.id === movingFloaterId)
+                        : null;
+                      const canAcceptMovingPerson = Boolean(
+                        movingPerson &&
+                          movingPerson.role !== "tl" &&
+                          !movingPerson.pto &&
+                          movingPerson.certs.includes(station.id)
+                      );
+                      const isDropTarget =
+                        dropTargetStationId === station.id &&
+                        canAcceptMovingPerson;
+
                       return (
                         <div
                           key={station.id}
                           className={`${
-                            manualMode
-                              ? "is-editing "
-                              : ""
+                            manualMode ? "is-editing " : ""
+                          }${hasTraining ? "has-training " : ""}${
+                            movingPerson ? "is-drop-option " : ""
                           }${
-                            hasTraining
-                              ? "has-training"
+                            movingPerson && !canAcceptMovingPerson
+                              ? "is-drop-ineligible "
                               : ""
-                          }`.trim()}
+                          }${isDropTarget ? "is-drop-target" : ""}`.trim()}
+                          role={movingPerson ? "button" : undefined}
+                          tabIndex={movingPerson ? 0 : undefined}
+                          onClick={(event) => {
+                            if (!movingPerson || event.target.closest("select, button")) {
+                              return;
+                            }
+                            if (canAcceptMovingPerson) {
+                              placeFloaterAtStation(station, movingPerson);
+                            } else {
+                              rejectFloaterAtStation(station, movingPerson);
+                            }
+                          }}
+                          onKeyDown={(event) => {
+                            if (
+                              !movingPerson ||
+                              (event.key !== "Enter" && event.key !== " ")
+                            ) {
+                              return;
+                            }
+                            event.preventDefault();
+                            if (canAcceptMovingPerson) {
+                              placeFloaterAtStation(station, movingPerson);
+                            } else {
+                              rejectFloaterAtStation(station, movingPerson);
+                            }
+                          }}
+                          onDragEnter={(event) => {
+                            if (!movingPerson) return;
+                            event.preventDefault();
+                            if (canAcceptMovingPerson) {
+                              setDropTargetStationId(station.id);
+                            }
+                          }}
+                          onDragOver={(event) => {
+                            if (!movingPerson) return;
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect =
+                              canAcceptMovingPerson ? "move" : "none";
+                            if (canAcceptMovingPerson) {
+                              setDropTargetStationId(station.id);
+                            }
+                          }}
+                          onDragLeave={(event) => {
+                            if (!event.currentTarget.contains(event.relatedTarget)) {
+                              setDropTargetStationId(null);
+                            }
+                          }}
+                          onDrop={(event) => {
+                            if (!movingPerson) return;
+                            event.preventDefault();
+                            setDropTargetStationId(null);
+                            if (canAcceptMovingPerson) {
+                              placeFloaterAtStation(station, movingPerson);
+                            } else {
+                              rejectFloaterAtStation(station, movingPerson);
+                            }
+                          }}
                         >
                           <span>
                             {station.name}
