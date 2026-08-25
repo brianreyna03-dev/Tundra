@@ -49,6 +49,7 @@ export default function App() {
             onGenerate={actions.generate}
             onStartManual={actions.startManual}
             onAssign={actions.assignPerson}
+            onSetTraining={actions.setTraining}
           />
         )}
         {tab === "map" && (
