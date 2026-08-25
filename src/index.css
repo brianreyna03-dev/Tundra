@@ -977,6 +977,55 @@ select:focus {
   gap: 11px;
 }
 
+.roster-section {
+  margin-top: 18px;
+}
+
+.roster-section + .roster-section {
+  margin-top: 26px;
+}
+
+.roster-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding-bottom: 9px;
+  border-bottom: 2px solid var(--charcoal);
+}
+
+.roster-section-head h3 {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 19px;
+  letter-spacing: -0.025em;
+}
+
+.roster-section-head p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.leader-roster-section .roster-section-head {
+  border-bottom-color: var(--plant-red);
+}
+
+.roster-empty {
+  padding: 15px 16px;
+  border: 1px dashed #c9cdd2;
+  background: #fafafa;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.clear-zones-btn {
+  flex: 0 0 auto;
+}
+
 .pcard {
   position: relative;
   overflow: visible;
@@ -2036,6 +2085,15 @@ button:disabled {
 }
 
 @media (max-width: 540px) {
+  .roster-section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clear-zones-btn {
+    width: 100%;
+  }
+
   .leader-strip-head {
     align-items: flex-start;
     flex-direction: column;
@@ -3701,4 +3759,22 @@ input.snm-input:focus {
   border-color: var(--plant-red);
   background: #fff;
   box-shadow: 0 0 0 3px rgba(227, 27, 35, 0.1);
+}
+
+
+/* Duplicate-name validation */
+.duplicate-name-error {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b42318;
+}
+
+.person-name-error {
+  margin-top: 4px;
+}
+
+input[aria-invalid="true"] {
+  border-color: #d92d20;
 }
