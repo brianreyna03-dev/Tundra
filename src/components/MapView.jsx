@@ -183,6 +183,175 @@ function buildAutoLayout(stations) {
   return layout;
 }
 
+function TrainerDropZone({
+  station,
+  segment,
+  team,
+  editing,
+  movingPersonId,
+  trainerDropTargetStationId,
+  onTrainerDrop,
+  onTrainerDropRejected,
+  onTrainerDropTargetChange,
+  onSetTrainer,
+}) {
+  const explicitTrainerId = segment?.trainers?.[station.id] || null;
+  const traineeIds = Array.isArray(segment?.training?.[station.id])
+    ? segment.training[station.id]
+    : [];
+  const trainerName = explicitTrainerId
+    ? nameFor(team, explicitTrainerId)
+    : null;
+
+  const movingPerson = movingPersonId
+    ? team.find((person) => person.id === movingPersonId)
+    : null;
+  const canAcceptMovingPerson = Boolean(
+    movingPerson &&
+      movingPerson.role !== "tl" &&
+      !movingPerson.pto &&
+      movingPerson.certs.includes(station.id)
+  );
+  const isDropTarget =
+    trainerDropTargetStationId === station.id && canAcceptMovingPerson;
+
+  if (!editing && !trainerName && !traineeIds.length) {
+    return null;
+  }
+
+  const placeTrainer = () => {
+    if (!movingPerson) return;
+
+    if (!canAcceptMovingPerson) {
+      onTrainerDropRejected?.(station, movingPerson);
+      return;
+    }
+
+    onTrainerDrop?.(station, movingPerson);
+  };
+
+  return (
+    <div
+      className={`map-trainer-zone${trainerName ? " has-trainer" : " is-empty"}${
+        movingPerson ? " is-trainer-drop-option" : ""
+      }${
+        movingPerson && !canAcceptMovingPerson ? " is-trainer-drop-ineligible" : ""
+      }${isDropTarget ? " is-trainer-drop-target" : ""}`}
+      role={editing && movingPerson ? "button" : undefined}
+      tabIndex={editing && movingPerson ? 0 : undefined}
+      aria-label={
+        editing && movingPerson
+          ? `${station.name} trainer slot. ${
+              canAcceptMovingPerson
+                ? `Set ${movingPerson.name} as trainer`
+                : `${movingPerson.name} is not certified to train this station`
+            }`
+          : undefined
+      }
+      onClick={(event) => {
+        event.stopPropagation();
+        if (editing && movingPerson) placeTrainer();
+      }}
+      onKeyDown={(event) => {
+        if (
+          !editing ||
+          !movingPerson ||
+          (event.key !== "Enter" && event.key !== " ")
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        placeTrainer();
+      }}
+      onDragEnter={(event) => {
+        if (!editing || !movingPerson) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (canAcceptMovingPerson) {
+          onTrainerDropTargetChange?.(station.id);
+        }
+      }}
+      onDragOver={(event) => {
+        if (!editing || !movingPerson) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = canAcceptMovingPerson ? "move" : "none";
+        if (canAcceptMovingPerson) {
+          onTrainerDropTargetChange?.(station.id);
+        }
+      }}
+      onDragLeave={(event) => {
+        event.stopPropagation();
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          onTrainerDropTargetChange?.(null);
+        }
+      }}
+      onDrop={(event) => {
+        if (!editing || !movingPerson) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onTrainerDropTargetChange?.(null);
+        placeTrainer();
+      }}
+    >
+      <div className="map-trainer-zone-head">
+        <span className="map-role-label map-role-trainer">Trainer</span>
+        <small>
+          {explicitTrainerId
+            ? "Dedicated trainer"
+            : editing
+              ? "Drop certified floater"
+              : "Trainer needed"}
+        </small>
+      </div>
+
+      {trainerName ? (
+        <div className="map-trainer-person">
+          <span className="map-trainer-avatar" aria-hidden="true">
+            {initialsOf(trainerName)}
+          </span>
+          <strong>{trainerName}</strong>
+          {editing && explicitTrainerId && (
+            <button
+              type="button"
+              className="map-trainer-remove"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSetTrainer?.(segment.key, station.id, null);
+              }}
+              aria-label={`Remove ${trainerName} as trainer from ${station.name}`}
+              title="Remove trainer"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ) : (
+        <span className="map-trainer-empty">
+          {traineeIds.length
+            ? "Trainer required"
+            : "Drag a certified floater here"}
+        </span>
+      )}
+
+      {movingPerson && editing && (
+        <span
+          className={`map-trainer-drop-cue${
+            canAcceptMovingPerson ? " is-eligible" : ""
+          }`}
+          aria-hidden="true"
+        >
+          {canAcceptMovingPerson
+            ? `Drop ${movingPerson.name.split(/\s+/)[0]} as trainer`
+            : "Not certified to train here"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ProcessCell({
   code,
   station,
@@ -196,6 +365,11 @@ function ProcessCell({
   onFloaterDrop,
   onFloaterDropRejected,
   onDropTargetChange,
+  trainerDropTargetStationId,
+  onTrainerDrop,
+  onTrainerDropRejected,
+  onTrainerDropTargetChange,
+  onSetTrainer,
   kind = "station",
   zone,
 }) {
@@ -274,20 +448,20 @@ function ProcessCell({
   }));
 
   const hasTraining = trainees.length > 0;
+  const explicitTrainerId = segment?.trainers?.[station.id] || null;
+  const effectiveTrainerName = explicitTrainerId
+    ? nameFor(team, explicitTrainerId)
+    : null;
   const titleParts = [station.name];
 
-  if (personName) {
-    titleParts.push(
-      hasTraining
-        ? `Trainer: ${personName}`
-        : `Assigned: ${personName}`
-    );
-  } else {
-    titleParts.push(
-      hasTraining
-        ? "Trainer required"
-        : "Coverage required"
-    );
+  titleParts.push(
+    personName ? `Assigned: ${personName}` : "Coverage required"
+  );
+
+  if (explicitTrainerId) {
+    titleParts.push(`Trainer: ${effectiveTrainerName}`);
+  } else if (hasTraining) {
+    titleParts.push("Trainer required");
   }
 
   if (hasTraining) {
@@ -329,7 +503,8 @@ function ProcessCell({
       className={`map-process${zoneClass}${
         personName ? " is-staffed" : " is-open"
       }${hasTraining ? " has-training" : ""}${
-        editing ? " is-editing" : ""
+        explicitTrainerId ? " has-dedicated-trainer" : ""
+      }${editing ? " is-editing" : ""
       }${movingPerson ? " is-drop-option" : ""}${
         movingPerson && !canAcceptMovingPerson ? " is-drop-ineligible" : ""
       }${isDropTarget ? " is-drop-target" : ""}`}
@@ -392,11 +567,9 @@ function ProcessCell({
 
       {editing ? (
         <div className="map-assignment-editor">
-          {hasTraining && (
-            <span className="map-role-label map-role-trainer">
-              Trainer
-            </span>
-          )}
+          <span className="map-role-label map-role-assigned">
+            Station assignment
+          </span>
 
           <AssignmentSelect
             station={station}
@@ -408,11 +581,7 @@ function ProcessCell({
           />
         </div>
       ) : personName ? (
-        <div
-          className={`map-assignee${
-            hasTraining ? " is-trainer" : ""
-          }`}
-        >
+        <div className="map-assignee">
           <span
             className="map-avatar"
             aria-hidden="true"
@@ -421,26 +590,28 @@ function ProcessCell({
           </span>
 
           <span className="map-person-copy">
-            {hasTraining && (
-              <small className="map-role-label map-role-trainer">
-                Trainer
-              </small>
-            )}
-
+            <small className="map-role-label map-role-assigned">
+              Assigned
+            </small>
             <strong>{personName}</strong>
           </span>
         </div>
       ) : (
-        <span
-          className={`map-uncovered${
-            hasTraining ? " trainer-required" : ""
-          }`}
-        >
-          {hasTraining
-            ? "Trainer required"
-            : "Coverage required"}
-        </span>
+        <span className="map-uncovered">Coverage required</span>
       )}
+
+      <TrainerDropZone
+        station={station}
+        segment={segment}
+        team={team}
+        editing={editing}
+        movingPersonId={movingPersonId}
+        trainerDropTargetStationId={trainerDropTargetStationId}
+        onTrainerDrop={onTrainerDrop}
+        onTrainerDropRejected={onTrainerDropRejected}
+        onTrainerDropTargetChange={onTrainerDropTargetChange}
+        onSetTrainer={onSetTrainer}
+      />
 
       {hasTraining && (
         <div
@@ -479,6 +650,7 @@ export default function MapView({
   onGenerate,
   onStartManual,
   onAssign,
+  onSetTrainer,
 }) {
   const { stations, team, schedule } = data;
 
@@ -495,6 +667,9 @@ export default function MapView({
     useState(null);
 
   const [dropTargetStationId, setDropTargetStationId] =
+    useState(null);
+
+  const [trainerDropTargetStationId, setTrainerDropTargetStationId] =
     useState(null);
 
   const [placementMessage, setPlacementMessage] =
@@ -636,6 +811,10 @@ export default function MapView({
       )
     : 0;
 
+  const trainerCount = segment
+    ? Object.values(segment.trainers || {}).filter(Boolean).length
+    : 0;
+
   const movingFloaterId = draggedFloaterId || selectedFloaterId;
   const movingFloater = movingFloaterId
     ? team.find((person) => person.id === movingFloaterId)
@@ -648,14 +827,36 @@ export default function MapView({
     setDraggedFloaterId(null);
     setSelectedFloaterId(null);
     setDropTargetStationId(null);
+    setTrainerDropTargetStationId(null);
     setPlacementMessage(`${person.name} moved to ${station.name}.`);
   };
 
   const rejectFloaterAtStation = (station, person) => {
     if (!station || !person) return;
     setDropTargetStationId(null);
+    setTrainerDropTargetStationId(null);
     setPlacementMessage(
       `${person.name} is not certified for ${station.name}.`
+    );
+  };
+
+  const placeFloaterAsTrainer = (station, person) => {
+    if (!segment || !station || !person) return;
+
+    onSetTrainer(segment.key, station.id, person.id);
+    setDraggedFloaterId(null);
+    setSelectedFloaterId(null);
+    setDropTargetStationId(null);
+    setTrainerDropTargetStationId(null);
+    setPlacementMessage(`${person.name} is now the trainer at ${station.name}.`);
+  };
+
+  const rejectFloaterAsTrainer = (station, person) => {
+    if (!station || !person) return;
+    setDropTargetStationId(null);
+    setTrainerDropTargetStationId(null);
+    setPlacementMessage(
+      `${person.name} cannot train ${station.name} because they are not certified there.`
     );
   };
 
@@ -670,12 +871,18 @@ export default function MapView({
     onFloaterDrop: placeFloaterAtStation,
     onFloaterDropRejected: rejectFloaterAtStation,
     onDropTargetChange: setDropTargetStationId,
+    trainerDropTargetStationId,
+    onTrainerDrop: placeFloaterAsTrainer,
+    onTrainerDropRejected: rejectFloaterAsTrainer,
+    onTrainerDropTargetChange: setTrainerDropTargetStationId,
+    onSetTrainer,
   };
 
   useEffect(() => {
     setDraggedFloaterId(null);
     setSelectedFloaterId(null);
     setDropTargetStationId(null);
+    setTrainerDropTargetStationId(null);
     setPlacementMessage("");
   }, [segment?.key]);
 
@@ -993,10 +1200,10 @@ export default function MapView({
               </strong>
 
               <span>
-                Drag a floater onto a highlighted certified station, or click a
-                floater and then click a highlighted station. Dropdowns are still
-                available for direct assignment. Trainer and trainee labels stay
-                visible on the map.
+                Drag a floater onto a station body to assign production coverage,
+                or drop them into the Trainer box to make them the dedicated trainer.
+                Click-to-place still works as a fallback. Only certified trainer
+                placements are accepted.
               </span>
             </div>
           )}
@@ -1034,7 +1241,7 @@ export default function MapView({
               <strong>
                 {filled}/{stations.length}{" "}
                 processes staffed · {trainingCount}{" "}
-                training
+                training · {trainerCount} dedicated trainer{trainerCount === 1 ? "" : "s"}
               </strong>
             </div>
 
@@ -1312,8 +1519,8 @@ export default function MapView({
               <div className="map-floater-help">
                 <span className="map-drag-icon" aria-hidden="true">↗</span>
                 <span>
-                  Drag a name to a station. Or click a name, then click a
-                  highlighted station.
+                  Drop on a station to assign coverage, or drop on its Trainer box
+                  to assign a dedicated trainer. Click-to-place also works.
                 </span>
               </div>
 
@@ -1349,7 +1556,7 @@ export default function MapView({
                           setSelectedFloaterId(null);
                           setDraggedFloaterId(personId);
                           setPlacementMessage(
-                            `Moving ${personName}. Drop on a highlighted station.`
+                            `Moving ${personName}. Drop on a station for coverage or on a Trainer box.`
                           );
                           event.dataTransfer.effectAllowed = "move";
                           event.dataTransfer.setData("text/plain", personId);
@@ -1357,6 +1564,7 @@ export default function MapView({
                         onDragEnd={() => {
                           setDraggedFloaterId(null);
                           setDropTargetStationId(null);
+                          setTrainerDropTargetStationId(null);
                         }}
                       >
                         <span className="map-floater-grip" aria-hidden="true">
@@ -1374,7 +1582,7 @@ export default function MapView({
                   })
                 ) : (
                   <span className="map-none">
-                    All active members are assigned or training.
+                    All active members are assigned, training, or serving as trainers.
                   </span>
                 )}
               </div>
@@ -1386,7 +1594,7 @@ export default function MapView({
                 {placementMessage ||
                   (movingFloater
                     ? `${movingFloater.name} is ready to place.`
-                    : "Certified stations will highlight while you move a floater.")}
+                    : "Drag a floater to a station for coverage or into a Trainer box.")}
               </div>
             </div>
 
@@ -1506,12 +1714,6 @@ export default function MapView({
                           </span>
 
                           <div className="map-additional-assignment">
-                            {hasTraining && (
-                              <span className="map-role-label map-role-trainer">
-                                Trainer
-                              </span>
-                            )}
-
                             {manualMode ? (
                               <AssignmentSelect
                                 station={station}
@@ -1527,12 +1729,22 @@ export default function MapView({
                               />
                             ) : (
                               <strong>
-                                {personName ||
-                                  (hasTraining
-                                    ? "Trainer required"
-                                    : "Coverage required")}
+                                {personName || "Coverage required"}
                               </strong>
                             )}
+
+                            <TrainerDropZone
+                              station={station}
+                              segment={segment}
+                              team={team}
+                              editing={manualMode}
+                              movingPersonId={movingFloaterId}
+                              trainerDropTargetStationId={trainerDropTargetStationId}
+                              onTrainerDrop={placeFloaterAsTrainer}
+                              onTrainerDropRejected={rejectFloaterAsTrainer}
+                              onTrainerDropTargetChange={setTrainerDropTargetStationId}
+                              onSetTrainer={onSetTrainer}
+                            />
 
                             {hasTraining && (
                               <div className="map-additional-training">
