@@ -56,22 +56,6 @@ function reconcileSchedule(schedule, stations, team) {
       if (valid) usedPeople.add(person.id);
     });
 
-    const trainers = {};
-    const trainerPeople = new Set();
-
-    stations.forEach((station) => {
-      const personId = segment.trainers?.[station.id] || null;
-      const person = personId ? activeById.get(personId) : null;
-      const valid =
-        person &&
-        person.certs.includes(station.id) &&
-        !usedPeople.has(person.id) &&
-        !trainerPeople.has(person.id);
-
-      trainers[station.id] = valid ? person.id : null;
-      if (valid) trainerPeople.add(person.id);
-    });
-
     const training = {};
     const trainingPeople = new Set();
 
@@ -84,7 +68,6 @@ function reconcileSchedule(schedule, stations, team) {
         const valid =
           activeById.has(personId) &&
           !usedPeople.has(personId) &&
-          !trainerPeople.has(personId) &&
           !trainingPeople.has(personId);
 
         if (valid) trainingPeople.add(personId);
@@ -92,16 +75,18 @@ function reconcileSchedule(schedule, stations, team) {
       });
     });
 
+    // Older saved plans may contain a separate `trainers` object. It is
+    // intentionally discarded: the person assigned to the station is the trainer.
+    const { trainers: _legacyTrainers, ...cleanSegment } = segment;
+
     return {
-      ...segment,
+      ...cleanSegment,
       assign,
       training,
-      trainers,
       float: active
         .filter(
           (person) =>
             !usedPeople.has(person.id) &&
-            !trainerPeople.has(person.id) &&
             !trainingPeople.has(person.id)
         )
         .map((person) => person.id),
@@ -148,15 +133,9 @@ function assignPerson(schedule, stations, team, segmentKey, stationId, personId)
           : [],
       ])
     );
-    const trainers = Object.fromEntries(
-      stations.map((candidate) => [
-        candidate.id,
-        segment.trainers?.[candidate.id] || null,
-      ])
-    );
 
-    // One person can occupy only one process during a quarter. Selecting a
-    // person who is already placed elsewhere moves them to the new station.
+    // One person can occupy only one role during a quarter. Moving somebody
+    // into production also removes any training assignment they had.
     if (personId) {
       Object.keys(assign).forEach((candidateStationId) => {
         if (assign[candidateStationId] === personId) {
@@ -169,30 +148,22 @@ function assignPerson(schedule, stations, team, segmentKey, stationId, personId)
           (candidatePersonId) => candidatePersonId !== personId
         );
       });
-
-      Object.keys(trainers).forEach((candidateStationId) => {
-        if (trainers[candidateStationId] === personId) {
-          trainers[candidateStationId] = null;
-        }
-      });
     }
 
     assign[stationId] = personId || null;
 
     const assignedPeople = new Set(Object.values(assign).filter(Boolean));
     const trainingPeople = new Set(Object.values(training).flat());
-    const trainerPeople = new Set(Object.values(trainers).filter(Boolean));
+
     return {
       ...segment,
       assign,
       training,
-      trainers,
       float: active
         .filter(
           (candidate) =>
             !assignedPeople.has(candidate.id) &&
-            !trainingPeople.has(candidate.id) &&
-            !trainerPeople.has(candidate.id)
+            !trainingPeople.has(candidate.id)
         )
         .map((candidate) => candidate.id),
       filled: assignedPeople.size,
@@ -237,20 +208,10 @@ function setTrainingPerson(
       ])
     );
     const assignedPeople = new Set(Object.values(assign).filter(Boolean));
-    const trainers = Object.fromEntries(
-      stations.map((candidate) => [
-        candidate.id,
-        segment.trainers?.[candidate.id] || null,
-      ])
-    );
-    const trainerPeople = new Set(Object.values(trainers).filter(Boolean));
 
-    // Training is only available to active team members who are not already
-    // covering production or serving as a trainer during the same period.
-    if (
-      isTraining &&
-      (assignedPeople.has(personId) || trainerPeople.has(personId))
-    ) {
+    // Any active floater can train at any station, certification is not required.
+    // Someone already covering production cannot also be a trainee that quarter.
+    if (isTraining && assignedPeople.has(personId)) {
       return segment;
     }
 
@@ -281,108 +242,11 @@ function setTrainingPerson(
       ...segment,
       assign,
       training,
-      trainers,
       float: active
         .filter(
           (candidate) =>
             !assignedPeople.has(candidate.id) &&
-            !trainerPeople.has(candidate.id) &&
             !trainingPeople.has(candidate.id)
-        )
-        .map((candidate) => candidate.id),
-      filled: assignedPeople.size,
-      manuallyEdited: true,
-    };
-  });
-
-  return {
-    ...schedule,
-    mode: schedule.mode === "manual" ? "manual" : "adjusted",
-    manuallyEditedAt: Date.now(),
-    segments,
-    stats: scheduleStats(stations, team),
-  };
-}
-
-function setTrainerPerson(
-  schedule,
-  stations,
-  team,
-  segmentKey,
-  stationId,
-  personId
-) {
-  if (!schedule || !Array.isArray(schedule.segments)) return schedule;
-
-  const station = stations.find((candidate) => candidate.id === stationId);
-  if (!station) return schedule;
-
-  const active = activeProductionTeam(team);
-  const person = personId
-    ? active.find((candidate) => candidate.id === personId)
-    : null;
-
-  if (personId && (!person || !person.certs.includes(stationId))) {
-    return schedule;
-  }
-
-  const segments = schedule.segments.map((segment) => {
-    if (segment.key !== segmentKey) return segment;
-
-    const assign = Object.fromEntries(
-      stations.map((candidate) => [
-        candidate.id,
-        segment.assign?.[candidate.id] || null,
-      ])
-    );
-    const training = Object.fromEntries(
-      stations.map((candidate) => [
-        candidate.id,
-        Array.isArray(segment.training?.[candidate.id])
-          ? [...segment.training[candidate.id]]
-          : [],
-      ])
-    );
-    const trainers = Object.fromEntries(
-      stations.map((candidate) => [
-        candidate.id,
-        segment.trainers?.[candidate.id] || null,
-      ])
-    );
-
-    const assignedPeople = new Set(Object.values(assign).filter(Boolean));
-    const trainingPeople = new Set(Object.values(training).flat());
-
-    if (
-      personId &&
-      (assignedPeople.has(personId) || trainingPeople.has(personId))
-    ) {
-      return segment;
-    }
-
-    if (personId) {
-      Object.keys(trainers).forEach((candidateStationId) => {
-        if (trainers[candidateStationId] === personId) {
-          trainers[candidateStationId] = null;
-        }
-      });
-    }
-
-    trainers[stationId] = personId || null;
-
-    const trainerPeople = new Set(Object.values(trainers).filter(Boolean));
-
-    return {
-      ...segment,
-      assign,
-      training,
-      trainers,
-      float: active
-        .filter(
-          (candidate) =>
-            !assignedPeople.has(candidate.id) &&
-            !trainingPeople.has(candidate.id) &&
-            !trainerPeople.has(candidate.id)
         )
         .map((candidate) => candidate.id),
       filled: assignedPeople.size,
@@ -418,13 +282,11 @@ function preserveTraining(nextSchedule, previousSchedule) {
     segments: nextSchedule.segments.map((segment) => {
       const previous = previousByKey.get(segment.key);
       const training = previous?.training || segment.training;
-      const trainers = previous?.trainers || segment.trainers;
-      const reservedPeople = new Set([
-        ...Object.values(training || {}).flatMap((ids) =>
+      const reservedPeople = new Set(
+        Object.values(training || {}).flatMap((ids) =>
           Array.isArray(ids) ? ids : []
-        ),
-        ...Object.values(trainers || {}).filter(Boolean),
-      ]);
+        )
+      );
       const assign = Object.fromEntries(
         Object.entries(segment.assign || {}).map(([stationId, personId]) => [
           stationId,
@@ -436,7 +298,6 @@ function preserveTraining(nextSchedule, previousSchedule) {
         ...segment,
         assign,
         training,
-        trainers,
       };
     }),
   };
@@ -743,18 +604,6 @@ function reducer(state, action) {
         ),
       };
 
-    case "SET_TRAINER":
-      return {
-        ...state,
-        schedule: setTrainerPerson(
-          state.schedule,
-          state.stations,
-          state.team,
-          action.segmentKey,
-          action.stationId,
-          action.personId
-        ),
-      };
 
     case "SET_SCHEDULE":
       return {
@@ -865,13 +714,6 @@ export function useShiftData() {
           stationId,
           personId,
           isTraining,
-        }),
-      setTrainer: (segmentKey, stationId, personId) =>
-        dispatch({
-          type: "SET_TRAINER",
-          segmentKey,
-          stationId,
-          personId,
         }),
       generate: () =>
         dispatch({
