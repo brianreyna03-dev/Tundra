@@ -5264,8 +5264,9 @@ input[aria-invalid="true"] {
 }
 
 .map-training-card .map-training-full-name {
-  font-size: 9.5px;
-  line-height: 1.22;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.18;
 }
 
 .map-training-card .map-training-full-name-row {
@@ -5276,4 +5277,26 @@ input[aria-invalid="true"] {
   max-width: 100%;
   font-size: 7.25px;
   line-height: 1.25;
+}
+
+
+/* ============================================================
+   Team Floor Map — trainee print cleanup
+   Keep empty trainee targets interactive on-screen, but omit them
+   from printed maps. Trainee names are intentionally prominent.
+   ============================================================ */
+@media print {
+  .floor-map .map-training-card:not(.has-trainees) {
+    display: none !important;
+  }
+
+  .floor-map .map-training-card.has-trainees .map-training-full-name {
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  .floor-map .map-training-card.has-trainees .map-trainee-remove {
+    display: none !important;
+  }
 }
