@@ -193,8 +193,6 @@ function TrainingPairBox({
   onTrainingDropTargetChange,
   onSetTraining,
 }) {
-  const trainerId = segment?.assign?.[station.id] || null;
-  const trainerName = trainerId ? nameFor(team, trainerId) : null;
   const traineeIds = Array.isArray(segment?.training?.[station.id])
     ? segment.training[station.id]
     : [];
@@ -219,26 +217,6 @@ function TrainingPairBox({
         movingPerson ? " is-training-drag-active" : ""
       }${isTrainingDropTarget ? " is-trainee-drop-target" : ""}`}
     >
-      <div className="map-training-card-head">
-        <span>Training</span>
-        <small>
-          {traineeIds.length
-            ? `${traineeIds.length} trainee${traineeIds.length === 1 ? "" : "s"}`
-            : "Ready for trainee"}
-        </small>
-      </div>
-
-      <div className="map-training-person-block map-training-trainer-block">
-        <span className="map-training-pair-label">Trainer</span>
-        {trainerName ? (
-          <strong className="map-training-full-name">{trainerName}</strong>
-        ) : (
-          <span className="map-training-missing">
-            {traineeIds.length ? "Trainer required" : "No assigned operator"}
-          </span>
-        )}
-      </div>
-
       <div
         className={`map-training-person-block map-training-trainee-block${
           movingPerson ? " is-trainee-drop-option" : ""
