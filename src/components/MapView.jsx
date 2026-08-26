@@ -215,10 +215,6 @@ function TrainerDropZone({
   const isDropTarget =
     trainerDropTargetStationId === station.id && canAcceptMovingPerson;
 
-  if (!editing && !trainerName && !traineeIds.length) {
-    return null;
-  }
-
   const placeTrainer = () => {
     if (!movingPerson) return;
 
@@ -237,10 +233,10 @@ function TrainerDropZone({
       }${
         movingPerson && !canAcceptMovingPerson ? " is-trainer-drop-ineligible" : ""
       }${isDropTarget ? " is-trainer-drop-target" : ""}`}
-      role={editing && movingPerson ? "button" : undefined}
-      tabIndex={editing && movingPerson ? 0 : undefined}
+      role={movingPerson ? "button" : undefined}
+      tabIndex={movingPerson ? 0 : undefined}
       aria-label={
-        editing && movingPerson
+        movingPerson
           ? `${station.name} trainer slot. ${
               canAcceptMovingPerson
                 ? `Set ${movingPerson.name} as trainer`
@@ -250,11 +246,10 @@ function TrainerDropZone({
       }
       onClick={(event) => {
         event.stopPropagation();
-        if (editing && movingPerson) placeTrainer();
+        if (movingPerson) placeTrainer();
       }}
       onKeyDown={(event) => {
         if (
-          !editing ||
           !movingPerson ||
           (event.key !== "Enter" && event.key !== " ")
         ) {
@@ -266,7 +261,7 @@ function TrainerDropZone({
         placeTrainer();
       }}
       onDragEnter={(event) => {
-        if (!editing || !movingPerson) return;
+        if (!movingPerson) return;
         event.preventDefault();
         event.stopPropagation();
         if (canAcceptMovingPerson) {
@@ -274,7 +269,7 @@ function TrainerDropZone({
         }
       }}
       onDragOver={(event) => {
-        if (!editing || !movingPerson) return;
+        if (!movingPerson) return;
         event.preventDefault();
         event.stopPropagation();
         event.dataTransfer.dropEffect = canAcceptMovingPerson ? "move" : "none";
@@ -289,7 +284,7 @@ function TrainerDropZone({
         }
       }}
       onDrop={(event) => {
-        if (!editing || !movingPerson) return;
+        if (!movingPerson) return;
         event.preventDefault();
         event.stopPropagation();
         onTrainerDropTargetChange?.(null);
@@ -301,9 +296,13 @@ function TrainerDropZone({
         <small>
           {explicitTrainerId
             ? "Dedicated trainer"
-            : editing
-              ? "Drop certified floater"
-              : "Trainer needed"}
+            : movingPerson
+              ? canAcceptMovingPerson
+                ? "Drop here"
+                : "Not certified"
+              : traineeIds.length
+                ? "Trainer required"
+                : "Certified only"}
         </small>
       </div>
 
@@ -313,7 +312,7 @@ function TrainerDropZone({
             {initialsOf(trainerName)}
           </span>
           <strong>{trainerName}</strong>
-          {editing && explicitTrainerId && (
+          {explicitTrainerId && onSetTrainer && (
             <button
               type="button"
               className="map-trainer-remove"
@@ -332,11 +331,11 @@ function TrainerDropZone({
         <span className="map-trainer-empty">
           {traineeIds.length
             ? "Trainer required"
-            : "Drag a certified floater here"}
+            : "Drop trainer here"}
         </span>
       )}
 
-      {movingPerson && editing && (
+      {movingPerson && (
         <span
           className={`map-trainer-drop-cue${
             canAcceptMovingPerson ? " is-eligible" : ""
