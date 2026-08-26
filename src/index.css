@@ -3096,7 +3096,7 @@ button:disabled {
 
 .map-process-blocked .map-code,
 .map-process-blocked .map-special-copy {
-  color: #fff;
+  color: #000;
 }
 
 .map-process-buffer {
