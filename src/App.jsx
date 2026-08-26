@@ -59,7 +59,6 @@ export default function App() {
             onStartManual={actions.startManual}
             onAssign={actions.assignPerson}
             onSetTraining={actions.setTraining}
-            onSetTrainer={actions.setTrainer}
           />
         )}
         {tab === "team" && (
