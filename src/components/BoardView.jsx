@@ -62,16 +62,12 @@ function TrainingCell({
       Array.isArray(ids) ? ids : []
     )
   );
-  const trainerIds = new Set(
-    Object.values(segment?.trainers || {}).filter(Boolean)
-  );
 
   const available = team
     .filter((person) => person.role !== "tl")
     .filter((person) => !person.pto)
     .filter((person) => !assignedIds.has(person.id))
     .filter((person) => !trainingIds.has(person.id))
-    .filter((person) => !trainerIds.has(person.id))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   if (!editing && !traineeIds.length) {
