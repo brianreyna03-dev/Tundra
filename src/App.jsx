@@ -58,6 +58,7 @@ export default function App() {
             onGenerate={actions.generate}
             onStartManual={actions.startManual}
             onAssign={actions.assignPerson}
+            onSetTraining={actions.setTraining}
             onSetTrainer={actions.setTrainer}
           />
         )}
