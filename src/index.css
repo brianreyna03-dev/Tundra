@@ -4667,3 +4667,120 @@ input[aria-invalid="true"] {
     display: none !important;
   }
 }
+
+/* ============================================================
+   Always-visible trainer drop target
+   ============================================================ */
+.map-process:not(.map-process-blocked):not(.map-process-buffer):not(.map-process-empty):not(.map-process-unconfigured) {
+  min-height: 118px;
+}
+
+.map-trainer-zone {
+  flex: 0 0 auto;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 6px 7px;
+  border: 1px dashed #9faab3;
+  border-left: 3px solid #66727d;
+  border-radius: 5px;
+  background: #f7f9fa;
+}
+
+.map-trainer-zone.is-empty {
+  background: linear-gradient(180deg, #fbfcfd 0%, #f5f7f8 100%);
+}
+
+.map-trainer-zone-head {
+  align-items: center;
+  gap: 5px;
+}
+
+.map-trainer-zone-head .map-role-trainer {
+  color: #34414b;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.map-trainer-zone-head small {
+  color: #65717b;
+  font-size: 6.5px;
+  font-weight: 850;
+}
+
+.map-trainer-empty {
+  display: block;
+  overflow: hidden;
+  color: #59656f;
+  font-size: 7.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-trainer-zone.has-trainer {
+  border-color: #9fc0aa;
+  border-left-color: #2d7047;
+  background: #f2f8f4;
+}
+
+.map-trainer-person {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 5px;
+}
+
+.map-trainer-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 6.5px;
+}
+
+.map-trainer-person strong {
+  font-size: 8px;
+}
+
+.map-trainer-remove {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+.map-trainer-zone.is-trainer-drop-option:not(.is-trainer-drop-ineligible) {
+  border-style: solid;
+  border-color: #3f8a5b;
+  border-left-color: #24653c;
+  background: #eaf7ef;
+  box-shadow: inset 0 0 0 1px rgba(36, 101, 60, 0.18);
+}
+
+.map-trainer-zone.is-trainer-drop-ineligible {
+  border-color: #d0b9a0;
+  border-left-color: #b17a43;
+  background: #fbf6f0;
+  opacity: 0.6;
+}
+
+.map-trainer-zone.is-trainer-drop-target {
+  border-color: #1f6b3a;
+  border-left-color: #154f2a;
+  background: #def2e5;
+  box-shadow:
+    inset 0 0 0 2px rgba(31, 107, 58, 0.26),
+    0 4px 10px rgba(31, 107, 58, 0.13);
+}
+
+.map-trainer-drop-cue {
+  padding-top: 4px;
+  font-size: 6.5px;
+}
+
+@media print {
+  .map-trainer-zone.is-empty {
+    border-color: #d5d9dd;
+    border-left-color: #aab1b8;
+    background: #fff;
+  }
+}
