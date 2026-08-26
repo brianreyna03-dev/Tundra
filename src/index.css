@@ -4784,3 +4784,265 @@ input[aria-invalid="true"] {
     background: #fff;
   }
 }
+
+/* ============================================================
+   Combined trainer + trainee box on Team Floor Map
+   ============================================================ */
+.map-trainer-zone {
+  gap: 6px;
+  padding: 7px 8px;
+  border-left-width: 3px;
+  background: #f8fafb;
+}
+
+.map-trainer-zone-head {
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e3e8eb;
+}
+
+.map-trainer-zone-head .map-role-training {
+  color: #244d70;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+}
+
+.map-training-pair-row {
+  display: grid;
+  grid-template-columns: 43px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.map-training-pair-trainer {
+  min-height: 24px;
+}
+
+.map-training-pair-trainees {
+  align-items: start;
+  padding-top: 5px;
+  border-top: 1px dashed #dfe5e8;
+}
+
+.map-training-pair-label {
+  color: #68737d;
+  font-size: 6.5px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.map-training-pair-trainee-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.map-training-pair-trainee {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px 6px 3px 4px;
+  border: 1px solid #b8cde0;
+  border-radius: 5px;
+  background: #eef5fb;
+  color: #254e70;
+}
+
+.map-training-pair-trainee-avatar {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: #dcebf7;
+  color: #285778;
+  font-size: 6px;
+  font-weight: 950;
+}
+
+.map-training-pair-trainee strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 7.5px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-training-pair-empty {
+  color: #99a2aa;
+  font-size: 7px;
+  font-weight: 750;
+}
+
+.map-trainer-zone.has-trainer {
+  border-color: #9fbca9;
+  border-left-color: #2d7047;
+  background: #f5faf7;
+}
+
+.map-process.has-training,
+.map-process.has-dedicated-trainer {
+  min-height: 126px;
+}
+
+@media (max-width: 540px) {
+  .map-training-pair-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .map-training-pair-label {
+    font-size: 7px;
+  }
+
+  .map-training-pair-trainee strong {
+    font-size: 8px;
+  }
+}
+
+/* ============================================================
+   Floor-map trainee drag/drop target
+   ============================================================ */
+.map-training-pair-trainer,
+.map-training-pair-trainees {
+  position: relative;
+  border-radius: 5px;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.map-training-pair-trainer.is-trainer-drop-option,
+.map-training-pair-trainees.is-trainee-drop-option {
+  cursor: copy;
+}
+
+.map-training-pair-trainer.is-trainer-drop-option {
+  padding: 4px;
+  border: 1px dashed #9db7a5;
+  background: #f4faf6;
+}
+
+.map-training-pair-trainer.is-trainer-drop-ineligible {
+  border-color: #d4c0a8;
+  background: #fbf7f2;
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.map-training-pair-trainer.is-trainer-drop-target {
+  border-style: solid;
+  border-color: #2d7047;
+  background: #e8f6ed;
+  box-shadow: inset 0 0 0 1px rgba(45, 112, 71, 0.24);
+}
+
+.map-training-pair-trainees.is-trainee-drop-option {
+  margin: 0 -3px -3px;
+  padding: 7px 3px 3px;
+  border: 1px dashed #7fa9cb;
+  background: #f3f8fc;
+  cursor: copy;
+}
+
+.map-training-pair-trainees.is-trainee-drop-target,
+.map-trainer-zone.is-trainee-drop-target .map-training-pair-trainees {
+  border-style: solid;
+  border-color: #2f6f9f;
+  background: #e6f2fb;
+  box-shadow:
+    inset 0 0 0 1px rgba(47, 111, 159, 0.24),
+    0 3px 8px rgba(47, 111, 159, 0.1);
+  transform: translateY(-1px);
+}
+
+.map-training-pair-trainee-content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.map-trainee-drop-cue {
+  display: block;
+  color: #2f6f9f;
+  font-size: 6.5px;
+  font-weight: 950;
+  letter-spacing: 0.035em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.map-trainee-remove {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid #b7cada;
+  border-radius: 4px;
+  background: #fff;
+  color: #52738d;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.map-trainee-remove:hover,
+.map-trainee-remove:focus-visible {
+  border-color: #9e4d4d;
+  color: #9e3535;
+  outline: none;
+}
+
+.map-training-pair-trainee {
+  padding-right: 4px;
+}
+
+.map-trainer-zone.is-training-drag-active .map-training-pair-trainees .map-training-pair-empty {
+  color: #2f6f9f;
+  font-weight: 900;
+}
+
+@media print {
+  .map-trainee-drop-cue,
+  .map-trainee-remove {
+    display: none !important;
+  }
+
+  .map-training-pair-trainer.is-trainer-drop-option,
+  .map-training-pair-trainees.is-trainee-drop-option {
+    border-color: transparent;
+    background: transparent;
+  }
+}
+
+/* A floater can always use the Trainee target, so an uncertified coverage
+   drop must not dim the entire station and hide that valid training target. */
+.map-process.is-drop-ineligible.has-trainee-drop-option {
+  opacity: 1;
+  filter: none;
+  cursor: default;
+  border-color: #cfd5da;
+  background: #fff;
+  box-shadow: none;
+}
+
+.map-additional-list > div.is-drop-ineligible.has-trainee-drop-option {
+  opacity: 1;
+  cursor: default;
+  border-color: #d8dde2;
+  background: #fff;
+  box-shadow: none;
+}
