@@ -5053,7 +5053,7 @@ input[aria-invalid="true"] {
    This block intentionally lives last so it overrides older trainer styles.
    ============================================================ */
 .floor-map .map-process:not(.map-process-blocked):not(.map-process-buffer):not(.map-process-empty):not(.map-process-unconfigured) {
-  min-height: 154px;
+  min-height: 116px;
 }
 
 .map-training-card {
@@ -5238,4 +5238,42 @@ input[aria-invalid="true"] {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+}
+
+
+/* ============================================================
+   Team Floor Map — compact trainee-only card
+   The assigned operator shown above is implicitly the trainer.
+   ============================================================ */
+.map-training-card {
+  margin-top: 7px;
+  border: 1px solid rgba(69, 81, 92, 0.26);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.map-training-card .map-training-trainee-block {
+  min-height: 48px;
+  padding: 7px 8px;
+}
+
+.map-training-card .map-training-pair-label {
+  color: #56636f;
+  font-size: 6.75px;
+  letter-spacing: 0.1em;
+}
+
+.map-training-card .map-training-full-name {
+  font-size: 9.5px;
+  line-height: 1.22;
+}
+
+.map-training-card .map-training-full-name-row {
+  min-height: 24px;
+}
+
+.map-training-card .map-training-pair-empty {
+  max-width: 100%;
+  font-size: 7.25px;
+  line-height: 1.25;
 }
