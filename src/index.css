@@ -6295,3 +6295,39 @@ input[aria-invalid="true"] {
     line-height: 1.05 !important;
   }
 }
+
+
+/* ============================================================
+   Letter print — keep the entire Team Floor Map on ONE sheet
+   Scale leadership + title + status + floor map together so the
+   browser cannot push the floor map to a second page by itself.
+   ============================================================ */
+.map-print-sheet {
+  min-width: 0;
+}
+
+@media print {
+  .map-print-sheet {
+    width: 113.6364% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    zoom: 0.88 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* The sheet now owns print scaling. Keeping a second zoom on the
+     floor map was what made pagination unpredictable in Chrome. */
+  .map-print-sheet .floor-map {
+    width: 100% !important;
+    min-width: 0 !important;
+    zoom: 1 !important;
+  }
+
+  .map-print-sheet .floor-map-shell,
+  .map-print-sheet .floor-map,
+  .map-print-sheet .map-line-support {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
