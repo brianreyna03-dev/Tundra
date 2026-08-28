@@ -1223,12 +1223,13 @@ export default function MapView({
         </div>
       </div>
 
-      <TeamLeaderStrip
-        team={team}
-        compact
-      />
+      <div className="map-print-sheet">
+        <TeamLeaderStrip
+          team={team}
+          compact
+        />
 
-      {!built ? (
+        {!built ? (
         <div className="empty map-empty">
           <div className="empty-symbol">
             MAP
@@ -1875,7 +1876,8 @@ export default function MapView({
             )}
           </section>
         </>
-      )}
+        )}
+      </div>
     </>
   );
 }
