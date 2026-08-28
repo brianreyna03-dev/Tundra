@@ -7,6 +7,11 @@ import {
   generateSchedule,
 } from "../lib/scheduler.js";
 import { TL_ZONE_KEYS } from "../lib/teamLeaders.js";
+import {
+  KICK_OUT_REPAIR_STATION,
+  LINE_SUPPORT_SLOTS,
+  LINE_SUPPORT_SLOT_IDS,
+} from "../lib/floorMapConfig.js";
 
 function normalizePersonName(name) {
   return String(name ?? "")
@@ -16,6 +21,26 @@ function normalizePersonName(name) {
 
 function personNameKey(name) {
   return normalizePersonName(name).toLocaleLowerCase();
+}
+
+function normalizeLineSupportLabel(value, fallback) {
+  const label = String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 48);
+
+  return label || fallback;
+}
+
+function normalizeLineSupportLabels(labels) {
+  const source = labels && typeof labels === "object" ? labels : {};
+
+  return Object.fromEntries(
+    LINE_SUPPORT_SLOTS.map((slot) => [
+      slot.id,
+      normalizeLineSupportLabel(source[slot.id], slot.label),
+    ])
+  );
 }
 
 function activeProductionTeam(team) {
@@ -75,6 +100,22 @@ function reconcileSchedule(schedule, stations, team) {
       });
     });
 
+    const lineSupport = {};
+    const lineSupportPeople = new Set();
+
+    LINE_SUPPORT_SLOT_IDS.forEach((slotId) => {
+      const personId = segment.lineSupport?.[slotId] || null;
+      const valid =
+        personId &&
+        activeById.has(personId) &&
+        !usedPeople.has(personId) &&
+        !trainingPeople.has(personId) &&
+        !lineSupportPeople.has(personId);
+
+      lineSupport[slotId] = valid ? personId : null;
+      if (valid) lineSupportPeople.add(personId);
+    });
+
     // Older saved plans may contain a separate `trainers` object. It is
     // intentionally discarded: the person assigned to the station is the trainer.
     const { trainers: _legacyTrainers, ...cleanSegment } = segment;
@@ -83,11 +124,13 @@ function reconcileSchedule(schedule, stations, team) {
       ...cleanSegment,
       assign,
       training,
+      lineSupport,
       float: active
         .filter(
           (person) =>
             !usedPeople.has(person.id) &&
-            !trainingPeople.has(person.id)
+            !trainingPeople.has(person.id) &&
+            !lineSupportPeople.has(person.id)
         )
         .map((person) => person.id),
       filled: usedPeople.size,
@@ -133,6 +176,12 @@ function assignPerson(schedule, stations, team, segmentKey, stationId, personId)
           : [],
       ])
     );
+    const lineSupport = Object.fromEntries(
+      LINE_SUPPORT_SLOT_IDS.map((slotId) => [
+        slotId,
+        segment.lineSupport?.[slotId] || null,
+      ])
+    );
 
     // One person can occupy only one role during a quarter. Moving somebody
     // into production also removes any training assignment they had.
@@ -148,22 +197,29 @@ function assignPerson(schedule, stations, team, segmentKey, stationId, personId)
           (candidatePersonId) => candidatePersonId !== personId
         );
       });
+
+      Object.keys(lineSupport).forEach((slotId) => {
+        if (lineSupport[slotId] === personId) lineSupport[slotId] = null;
+      });
     }
 
     assign[stationId] = personId || null;
 
     const assignedPeople = new Set(Object.values(assign).filter(Boolean));
     const trainingPeople = new Set(Object.values(training).flat());
+    const lineSupportPeople = new Set(Object.values(lineSupport).filter(Boolean));
 
     return {
       ...segment,
       assign,
       training,
+      lineSupport,
       float: active
         .filter(
           (candidate) =>
             !assignedPeople.has(candidate.id) &&
-            !trainingPeople.has(candidate.id)
+            !trainingPeople.has(candidate.id) &&
+            !lineSupportPeople.has(candidate.id)
         )
         .map((candidate) => candidate.id),
       filled: assignedPeople.size,
@@ -223,6 +279,12 @@ function setTrainingPerson(
           : [],
       ])
     );
+    const lineSupport = Object.fromEntries(
+      LINE_SUPPORT_SLOT_IDS.map((slotId) => [
+        slotId,
+        segment.lineSupport?.[slotId] || null,
+      ])
+    );
 
     // A member can train at only one process in a period. Adding them to a new
     // process moves their training assignment there.
@@ -233,22 +295,116 @@ function setTrainingPerson(
     });
 
     if (isTraining) {
+      Object.keys(lineSupport).forEach((slotId) => {
+        if (lineSupport[slotId] === personId) lineSupport[slotId] = null;
+      });
       training[stationId] = [...training[stationId], personId];
     }
 
     const trainingPeople = new Set(Object.values(training).flat());
+    const lineSupportPeople = new Set(Object.values(lineSupport).filter(Boolean));
 
     return {
       ...segment,
       assign,
       training,
+      lineSupport,
       float: active
         .filter(
           (candidate) =>
             !assignedPeople.has(candidate.id) &&
-            !trainingPeople.has(candidate.id)
+            !trainingPeople.has(candidate.id) &&
+            !lineSupportPeople.has(candidate.id)
         )
         .map((candidate) => candidate.id),
+      filled: assignedPeople.size,
+      manuallyEdited: true,
+    };
+  });
+
+  return {
+    ...schedule,
+    mode: schedule.mode === "manual" ? "manual" : "adjusted",
+    manuallyEditedAt: Date.now(),
+    segments,
+    stats: scheduleStats(stations, team),
+  };
+}
+
+function setLineSupportPerson(
+  schedule,
+  stations,
+  team,
+  segmentKey,
+  slotId,
+  personId
+) {
+  if (!schedule || !Array.isArray(schedule.segments)) return schedule;
+  if (!LINE_SUPPORT_SLOT_IDS.includes(slotId)) return schedule;
+
+  const active = activeProductionTeam(team);
+  const activeById = new Map(active.map((person) => [person.id, person]));
+  if (personId && !activeById.has(personId)) return schedule;
+
+  const segments = schedule.segments.map((segment) => {
+    if (segment.key !== segmentKey) return segment;
+
+    const assign = Object.fromEntries(
+      stations.map((station) => [
+        station.id,
+        segment.assign?.[station.id] || null,
+      ])
+    );
+    const training = Object.fromEntries(
+      stations.map((station) => [
+        station.id,
+        Array.isArray(segment.training?.[station.id])
+          ? [...segment.training[station.id]]
+          : [],
+      ])
+    );
+    const lineSupport = Object.fromEntries(
+      LINE_SUPPORT_SLOT_IDS.map((candidateSlotId) => [
+        candidateSlotId,
+        segment.lineSupport?.[candidateSlotId] || null,
+      ])
+    );
+
+    if (personId) {
+      Object.keys(assign).forEach((stationId) => {
+        if (assign[stationId] === personId) assign[stationId] = null;
+      });
+      Object.keys(training).forEach((stationId) => {
+        training[stationId] = training[stationId].filter(
+          (candidatePersonId) => candidatePersonId !== personId
+        );
+      });
+      Object.keys(lineSupport).forEach((candidateSlotId) => {
+        if (lineSupport[candidateSlotId] === personId) {
+          lineSupport[candidateSlotId] = null;
+        }
+      });
+    }
+
+    lineSupport[slotId] = personId || null;
+
+    const assignedPeople = new Set(Object.values(assign).filter(Boolean));
+    const trainingPeople = new Set(Object.values(training).flat());
+    const lineSupportPeople = new Set(Object.values(lineSupport).filter(Boolean));
+
+    return {
+      ...segment,
+      assign,
+      training,
+      lineSupport,
+      float: active
+        .filter(
+          (person) =>
+            !assignedPeople.has(person.id) &&
+            !trainingPeople.has(person.id) &&
+            !lineSupportPeople.has(person.id)
+        )
+        .map((person) => person.id),
       filled: assignedPeople.size,
       manuallyEdited: true,
     };
@@ -282,11 +438,13 @@ function preserveTraining(nextSchedule, previousSchedule) {
     segments: nextSchedule.segments.map((segment) => {
       const previous = previousByKey.get(segment.key);
       const training = previous?.training || segment.training;
-      const reservedPeople = new Set(
-        Object.values(training || {}).flatMap((ids) =>
+      const lineSupport = previous?.lineSupport || segment.lineSupport;
+      const reservedPeople = new Set([
+        ...Object.values(training || {}).flatMap((ids) =>
           Array.isArray(ids) ? ids : []
-        )
-      );
+        ),
+        ...Object.values(lineSupport || {}).filter(Boolean),
+      ]);
       const assign = Object.fromEntries(
         Object.entries(segment.assign || {}).map(([stationId, personId]) => [
           stationId,
@@ -298,20 +456,48 @@ function preserveTraining(nextSchedule, previousSchedule) {
         ...segment,
         assign,
         training,
+        lineSupport,
       };
     }),
   };
+}
+
+function floorStationKey(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function ensureRequiredFloorStations(stations) {
+  const kickIndex = stations.findIndex((station) => {
+    const key = floorStationKey(station.name);
+    return key === "kick out" || key === "kick out and repair";
+  });
+
+  if (kickIndex >= 0) {
+    return stations.map((station, index) =>
+      index === kickIndex
+        ? { ...station, name: KICK_OUT_REPAIR_STATION.name }
+        : station
+    );
+  }
+
+  return [...stations, { ...KICK_OUT_REPAIR_STATION }];
 }
 
 // Coerce any loaded/imported object into a clean, well-formed state.
 // Certifications are pruned to stations that actually exist.
 function normalize(d) {
   const data = d || {};
-  const stations = (data.stations || []).map((station) => ({
-    id: station.id || uid(),
-    name: String(station.name ?? "Untitled"),
-    category: station.category || "Stations",
-  }));
+  const stations = ensureRequiredFloorStations(
+    (data.stations || []).map((station) => ({
+      id: station.id || uid(),
+      name: String(station.name ?? "Untitled"),
+      category: station.category || "Stations",
+    }))
+  );
   const validIds = new Set(stations.map((station) => station.id));
   const usedLeaderZones = new Set();
   const team = (data.team || []).map((person) => {
@@ -350,6 +536,7 @@ function normalize(d) {
   return {
     stations,
     team,
+    lineSupportLabels: normalizeLineSupportLabels(data.lineSupportLabels),
     schedule: reconcileSchedule(loadedSchedule, stations, team),
   };
 }
@@ -604,6 +791,35 @@ function reducer(state, action) {
         ),
       };
 
+    case "SET_LINE_SUPPORT":
+      return {
+        ...state,
+        schedule: setLineSupportPerson(
+          state.schedule,
+          state.stations,
+          state.team,
+          action.segmentKey,
+          action.slotId,
+          action.personId
+        ),
+      };
+
+    case "RENAME_LINE_SUPPORT_SLOT": {
+      if (!LINE_SUPPORT_SLOT_IDS.includes(action.slotId)) return state;
+
+      const defaultLabel =
+        LINE_SUPPORT_SLOTS.find((slot) => slot.id === action.slotId)?.label ||
+        "Line Support";
+      const label = normalizeLineSupportLabel(action.label, defaultLabel);
+
+      return {
+        ...state,
+        lineSupportLabels: {
+          ...normalizeLineSupportLabels(state.lineSupportLabels),
+          [action.slotId]: label,
+        },
+      };
+    }
 
     case "SET_SCHEDULE":
       return {
@@ -714,6 +930,19 @@ export function useShiftData() {
           stationId,
           personId,
           isTraining,
+        }),
+      setLineSupport: (segmentKey, slotId, personId) =>
+        dispatch({
+          type: "SET_LINE_SUPPORT",
+          segmentKey,
+          slotId,
+          personId,
+        }),
+      renameLineSupportSlot: (slotId, label) =>
+        dispatch({
+          type: "RENAME_LINE_SUPPORT_SLOT",
+          slotId,
+          label,
         }),
       generate: () =>
         dispatch({
