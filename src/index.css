@@ -5758,7 +5758,118 @@ input[aria-invalid="true"] {
     print-color-adjust: exact !important;
   }
 }
-.map-process-blocked .map-code,
-.map-process-blocked .map-special-copy {
-  color: #000 !important;
+
+/* ============================================================
+   Letter map readability — single station labels + larger Line Support
+   Mapped station cards use only their map code (ST 4, SUB 6, PM 3),
+   so the secondary station description is intentionally omitted in JSX.
+   ============================================================ */
+.map-line-support-label span {
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.map-line-support-label small {
+  font-size: 9.5px;
+  line-height: 1.2;
+}
+
+.map-line-support-role {
+  font-size: 12.5px;
+  line-height: 1.15;
+}
+
+.map-line-support-person strong {
+  font-size: 12.5px;
+  line-height: 1.15;
+}
+
+.map-line-support-empty {
+  font-size: 9.5px;
+}
+
+.map-line-support-slot {
+  min-height: 64px;
+  padding: 8px 10px;
+}
+
+@media print {
+  /* Use more of the Letter page so names stay readable. */
+  .floor-map {
+    min-width: 1080px !important;
+    padding: 5px 4px 4px !important;
+    zoom: 0.86 !important;
+  }
+
+  .map-process {
+    padding: 5px 6px 6px !important;
+  }
+
+  .map-process-topline {
+    padding-bottom: 4px !important;
+  }
+
+  .floor-map .map-code {
+    font-size: 11px !important;
+  }
+
+  .floor-map .map-assignee strong {
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+  }
+
+  .floor-map .map-avatar {
+    width: 25px !important;
+    height: 25px !important;
+    font-size: 8px !important;
+  }
+
+  .map-line-support {
+    grid-template-columns: 116px minmax(0, 1fr) !important;
+    margin-top: 6px !important;
+  }
+
+  .map-line-support-label {
+    padding: 7px 8px !important;
+  }
+
+  .map-line-support-label span {
+    font-size: 17px !important;
+    line-height: 1.05 !important;
+  }
+
+  .map-line-support-label small {
+    font-size: 6.5px !important;
+    line-height: 1.15 !important;
+  }
+
+  .map-line-support-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(46px, auto) !important;
+  }
+
+  .map-line-support-slot {
+    min-height: 46px !important;
+    padding: 5px 6px !important;
+    gap: 3px !important;
+  }
+
+  .map-line-support-role {
+    font-size: 9.5px !important;
+    line-height: 1.1 !important;
+  }
+
+  .map-line-support-person {
+    grid-template-columns: minmax(0, 1fr) !important;
+    padding: 3px 4px !important;
+  }
+
+  .map-line-support-avatar {
+    display: none !important;
+  }
+
+  .map-line-support-person strong {
+    font-size: 10.5px !important;
+    line-height: 1.1 !important;
+  }
 }
