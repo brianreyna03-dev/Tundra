@@ -5758,3 +5758,7 @@ input[aria-invalid="true"] {
     print-color-adjust: exact !important;
   }
 }
+.map-process-blocked .map-code,
+.map-process-blocked .map-special-copy {
+  color: #000 !important;
+}
