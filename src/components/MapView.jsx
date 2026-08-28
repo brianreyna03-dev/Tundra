@@ -793,7 +793,7 @@ export default function MapView({
   /* Team Leader Zone 2: PM 3 + PM 4. Team Leader Zone 3: PM 1 + PM 2. */
   const pmSlots = [4, 3, 2, 1].map(
     (number) => ({
-      code: `PM ${number}`,
+      code: `Parts Management ${number}`,
       station: stationFor(`pm${number}`),
       zone:
         number >= 3 ? "zone2a" : "zone2b",
@@ -803,27 +803,27 @@ export default function MapView({
   /* Team Leader Zone 2: Sub 6. Team Leader Zone 4: Sub 1 through Sub 5. */
   const subSlots = [6, 5, 4, 3, 2, 1].map(
     (number) => ({
-      code: `Sub ${number}`,
+      code: `Sub Station ${number}`,
       station: stationFor(`sub${number}`),
       zone:
         number === 6 ? "zone2a" : "zone3",
     })
   );
 
-  /* Team Leader Zone 2: ST 4-7. Team Leader Zone 3: ST 8-11. */
+  /* Team Leader Zone 2: Station 4-7. Team Leader Zone 3: Station 8-11. */
   const mainTop = [
     4, 5, 6, 7, 8, 9, 10, 11,
   ].map((number) => ({
-    code: `ST ${number}`,
+    code: `Station ${number}`,
     station: stationFor(`st${number}`),
     zone:
       number <= 7 ? "zone2a" : "zone2b",
   }));
 
-  /* Team Leader Zone 1: ST 3, ST 2, ST 1, ST 12 + Kick Out & Repair. */
+  /* Team Leader Zone 1: Station 3, Station 2, Station 1, Station 12 + Kick Out & Repair. */
   const mainBottom = [3, 2, 1, 12].map(
     (number) => ({
-      code: `ST ${number}`,
+      code: `Station ${number}`,
       station: stationFor(`st${number}`),
       zone: "zone1",
     })
@@ -1282,6 +1282,10 @@ export default function MapView({
               </span>
             </div>
           )}
+
+          <h1 className="map-document-title">
+            Tundra Line 1 Schedule
+          </h1>
 
           <section
             className="map-statusbar"
