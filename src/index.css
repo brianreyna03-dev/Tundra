@@ -5564,3 +5564,197 @@ input[aria-invalid="true"] {
     visibility: hidden;
   }
 }
+
+/* ============================================================
+   Team Floor Map — US Letter landscape print fit
+   Keep the complete mapped floor + Line Support on one page.
+   ============================================================ */
+@page {
+  size: letter landscape;
+  margin: 0.22in;
+}
+
+@media print {
+  html,
+  body {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body {
+    overflow: visible !important;
+  }
+
+  main.wrap,
+  .wrap {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .map-panel-head,
+  .map-filter-card,
+  .manual-edit-banner,
+  .map-support-row,
+  .map-status-actions,
+  .map-jackpot,
+  .map-floater-help,
+  .map-placement-message,
+  .map-drop-hint {
+    display: none !important;
+  }
+
+  .map-statusbar {
+    display: grid !important;
+    grid-template-columns: 0.8fr 1fr 1.45fr !important;
+    width: 100% !important;
+    margin: 0 0 6px !important;
+    border: 1px solid #7f858b !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .map-statusbar > div {
+    padding: 5px 8px !important;
+    border-right: 1px solid #b7bcc1 !important;
+  }
+
+  .map-statusbar > div:nth-child(3) {
+    border-right: 0 !important;
+  }
+
+  .map-statusbar .lbl {
+    margin-bottom: 1px !important;
+    font-size: 6px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .map-statusbar strong {
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  .floor-map-shell {
+    width: 100% !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .floor-map {
+    width: 100% !important;
+    min-width: 1120px !important;
+    padding: 8px 6px 6px !important;
+    zoom: 0.82 !important;
+    background: #fff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .map-aisle,
+  .map-aisle-main {
+    height: 24px !important;
+  }
+
+  .map-aisle span {
+    height: 10px !important;
+  }
+
+  .map-zone-label,
+  .map-process {
+    min-height: 68px;
+  }
+
+  .map-zone-label-main {
+    min-height: 136px;
+  }
+
+  .map-process {
+    padding: 6px 7px 7px !important;
+  }
+
+  .map-assignee {
+    margin-top: 5px !important;
+  }
+
+  .map-training-card {
+    margin-top: 4px !important;
+  }
+
+  .map-training-card.has-trainees .map-training-trainee-block {
+    min-height: 36px !important;
+    padding: 5px 6px !important;
+  }
+
+  .map-line-support {
+    margin-top: 8px !important;
+    grid-template-columns: 112px minmax(0, 1fr) !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .map-line-support-label {
+    padding: 8px 10px !important;
+  }
+
+  .map-line-support-label span {
+    font-size: 14px !important;
+  }
+
+  .map-line-support-label small {
+    font-size: 6px !important;
+  }
+
+  .map-line-support-grid {
+    grid-template-columns: repeat(5, minmax(118px, 1fr)) !important;
+    grid-auto-rows: minmax(48px, auto) !important;
+  }
+
+  .map-line-support-slot {
+    min-height: 48px !important;
+    padding: 5px 7px !important;
+    gap: 3px !important;
+  }
+
+  .map-line-support-role {
+    font-size: 8px !important;
+  }
+
+  .map-line-support-person {
+    grid-template-columns: 20px minmax(0, 1fr) !important;
+    gap: 4px !important;
+    padding: 3px 4px !important;
+  }
+
+  .map-line-support-avatar {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 6px !important;
+  }
+
+  .map-line-support-person strong {
+    font-size: 8px !important;
+  }
+
+  .map-line-support-remove,
+  .map-line-support-role-edit,
+  .map-line-support-slot:not(.has-person) .map-line-support-empty {
+    display: none !important;
+  }
+
+  .floor-map,
+  .floor-map * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
