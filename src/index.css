@@ -6116,3 +6116,182 @@ input[aria-invalid="true"] {
     line-height: 1 !important;
   }
 }
+
+/* ============================================================
+   Letter print — use the page, don't over-compress the floor map
+   Keeps one-page landscape width while giving the map more vertical
+   presence and more readable names/labels.
+   ============================================================ */
+@page {
+  size: letter landscape;
+  margin: 0.16in;
+}
+
+@media print {
+  .map-document-title {
+    margin: 1px 0 4px !important;
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+  }
+
+  .map-statusbar {
+    margin: 0 0 5px !important;
+  }
+
+  .map-statusbar > div {
+    padding: 5px 7px !important;
+  }
+
+  .map-statusbar .lbl {
+    font-size: 5.8px !important;
+  }
+
+  .map-statusbar strong {
+    font-size: 8.2px !important;
+    line-height: 1.15 !important;
+  }
+
+  /* Use nearly the full printable width, rather than shrinking to ~78%. */
+  .floor-map {
+    width: 100% !important;
+    min-width: 1080px !important;
+    padding: 4px 4px 3px !important;
+    zoom: 0.90 !important;
+  }
+
+  .map-aisle,
+  .map-aisle-main {
+    height: 22px !important;
+  }
+
+  .map-aisle span {
+    height: 9px !important;
+  }
+
+  /* Give each mapped area enough height for names to breathe. */
+  .map-zone-label,
+  .map-process {
+    min-height: 82px !important;
+  }
+
+  .map-main-top .map-process,
+  .map-main-bottom .map-process {
+    min-height: 96px !important;
+  }
+
+  .map-zone-label-main {
+    min-height: 192px !important;
+  }
+
+  .map-zone-label {
+    padding: 7px 8px !important;
+  }
+
+  .map-process {
+    padding: 6px 7px !important;
+  }
+
+  .map-process-topline {
+    gap: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .floor-map .map-main-top .map-code,
+  .floor-map .map-main-bottom .map-code {
+    font-size: 10.8px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  .floor-map .map-zone-sub .map-code {
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  .floor-map .map-zone-parts .map-code {
+    font-size: 9.2px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  .floor-map .map-assignee {
+    gap: 5px !important;
+    margin-top: 5px !important;
+  }
+
+  .floor-map .map-avatar {
+    width: 27px !important;
+    height: 27px !important;
+    font-size: 8px !important;
+  }
+
+  .floor-map .map-assignee strong {
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+  }
+
+  .map-training-card.has-trainees {
+    margin-top: 5px !important;
+  }
+
+  .map-training-card.has-trainees .map-training-trainee-block {
+    min-height: 36px !important;
+    padding: 5px 6px !important;
+  }
+
+  .map-training-card.has-trainees .map-training-label {
+    font-size: 7.5px !important;
+  }
+
+  .map-training-card.has-trainees .map-training-trainee-name,
+  .map-training-card.has-trainees .map-trainee-name {
+    font-size: 10.5px !important;
+    line-height: 1.08 !important;
+  }
+
+  /* Two even rows of five, but with enough height to read from a posted sheet. */
+  .map-line-support {
+    grid-template-columns: 108px minmax(0, 1fr) !important;
+    margin-top: 7px !important;
+  }
+
+  .map-line-support-label {
+    padding: 8px 9px !important;
+  }
+
+  .map-line-support-label span {
+    font-size: 18px !important;
+    line-height: 1.02 !important;
+  }
+
+  .map-line-support-label small {
+    font-size: 6.5px !important;
+    line-height: 1.1 !important;
+  }
+
+  .map-line-support-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(52px, auto) !important;
+  }
+
+  .map-line-support-slot {
+    min-height: 52px !important;
+    padding: 5px 7px !important;
+    gap: 3px !important;
+  }
+
+  .map-line-support-role {
+    font-size: 10.5px !important;
+    line-height: 1.05 !important;
+  }
+
+  .map-line-support-person {
+    padding: 3px 4px !important;
+  }
+
+  .map-line-support-person strong {
+    font-size: 10.8px !important;
+    line-height: 1.05 !important;
+  }
+}
