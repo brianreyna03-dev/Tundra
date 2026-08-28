@@ -1461,6 +1461,7 @@ export default function MapView({
                   <ProcessCell
                     key={slot.code}
                     {...slot}
+                    hideProcessName
                     {...processProps}
                   />
                 ))}
@@ -1489,6 +1490,7 @@ export default function MapView({
 
                 <ProcessCell
                   {...subSlots[0]}
+                  hideProcessName
                   {...processProps}
                 />
 
@@ -1503,6 +1505,7 @@ export default function MapView({
                     <ProcessCell
                       key={slot.code}
                       {...slot}
+                      hideProcessName
                       {...processProps}
                     />
                   ))}
@@ -1535,6 +1538,7 @@ export default function MapView({
                       <ProcessCell
                         key={slot.code}
                         {...slot}
+                        hideProcessName
                         {...processProps}
                       />
                     ))}
@@ -1543,16 +1547,19 @@ export default function MapView({
                   <div className="map-main-row map-main-bottom">
                     <ProcessCell
                       {...mainBottom[0]}
+                      hideProcessName
                       {...processProps}
                     />
 
                     <ProcessCell
                       {...mainBottom[1]}
+                      hideProcessName
                       {...processProps}
                     />
 
                     <ProcessCell
                       {...mainBottom[2]}
+                      hideProcessName
                       {...processProps}
                     />
 
@@ -1563,6 +1570,7 @@ export default function MapView({
 
                     <ProcessCell
                       {...mainBottom[3]}
+                      hideProcessName
                       {...processProps}
                     />
 
