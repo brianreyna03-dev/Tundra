@@ -5873,3 +5873,81 @@ input[aria-invalid="true"] {
     line-height: 1.1 !important;
   }
 }
+
+
+/* ============================================================
+   Team Floor Map document title
+   ============================================================ */
+.map-document-title {
+  margin: 4px 0 12px;
+  color: #111820;
+  font-size: 28px;
+  font-weight: 950;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-align: center;
+}
+
+@media print {
+  .map-document-title {
+    display: block !important;
+    margin: 0 0 4px !important;
+    color: #000 !important;
+    font-size: 18px !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
+    text-align: center !important;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}
+
+
+/* ============================================================
+   Full main-line station labels
+   Main-line cards now read “Station 4” instead of “ST 4”.
+   Keep them prominent on screen and readable on Letter print.
+   ============================================================ */
+.floor-map .map-main-top .map-code,
+.floor-map .map-main-bottom .map-code {
+  font-size: 13px;
+  line-height: 1.05;
+  letter-spacing: 0.015em;
+  text-transform: none;
+}
+
+@media print {
+  .floor-map .map-main-top .map-code,
+  .floor-map .map-main-bottom .map-code {
+    font-size: 12px !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+  }
+}
+
+/* ============================================================
+   Full Sub Station + Parts Management labels
+   ============================================================ */
+.floor-map .map-zone-sub .map-code,
+.floor-map .map-zone-parts .map-code {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: normal;
+}
+
+@media print {
+  .floor-map .map-zone-sub .map-code,
+  .floor-map .map-zone-parts .map-code {
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    white-space: normal !important;
+  }
+}
