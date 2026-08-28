@@ -5384,15 +5384,66 @@ input[aria-invalid="true"] {
   border-bottom: 0;
 }
 
+.map-line-support-role-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 5px;
+  min-width: 0;
+}
+
 .map-line-support-role {
-  overflow: hidden;
+  min-width: 0;
   color: #222a30;
   font-size: 10px;
   font-weight: 950;
   letter-spacing: 0.015em;
   line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.map-line-support-role-edit {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid #c8cdd2;
+  border-radius: 4px;
+  background: #fff;
+  color: #56616b;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.map-line-support-role-edit:hover,
+.map-line-support-role-edit:focus-visible {
+  border-color: #6f7b85;
+  color: #111820;
+  outline: none;
+}
+
+.map-line-support-role-input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid #6f7b85;
+  border-radius: 4px;
+  background: #fff;
+  color: #111820;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.map-line-support-role-input:focus {
+  border-color: #1f6f8b;
+  box-shadow: 0 0 0 2px rgba(31, 111, 139, 0.14);
+  outline: none;
 }
 
 .map-line-support-person {
@@ -5504,7 +5555,8 @@ input[aria-invalid="true"] {
     print-color-adjust: exact;
   }
 
-  .map-line-support-remove {
+  .map-line-support-remove,
+  .map-line-support-role-edit {
     display: none !important;
   }
 
