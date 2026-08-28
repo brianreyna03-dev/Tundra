@@ -6331,3 +6331,144 @@ input[aria-invalid="true"] {
     page-break-inside: avoid !important;
   }
 }
+
+/* ============================================================
+   FINAL Letter print fit — one physical page, no pagination jump
+   Use the actual Letter-landscape printable width instead of CSS zoom.
+   The previous break-inside rules could push the entire floor map to page 2.
+   ============================================================ */
+@page {
+  size: letter landscape;
+  margin: 0.06in;
+}
+
+@media print {
+  html,
+  body,
+  #root,
+  main.wrap,
+  .wrap {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Keep the entire print view in normal flow. Do NOT make the browser
+     move the floor map to a new page just because it is one large block. */
+  .map-print-sheet,
+  .map-print-sheet .floor-map-shell,
+  .map-print-sheet .floor-map,
+  .map-print-sheet .map-line-support,
+  .map-print-sheet .map-zone,
+  .map-print-sheet .map-main-grid,
+  .map-print-sheet .map-main-row {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .map-print-sheet {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    zoom: 1 !important;
+    transform: none !important;
+  }
+
+  .map-print-sheet .floor-map-shell {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .map-print-sheet .floor-map {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 2px !important;
+    zoom: 1 !important;
+    transform: none !important;
+  }
+
+  /* Make the grid itself fluid so it fits the physical page width.
+     This removes the hard minimum track widths that previously forced
+     the map wider than Letter paper. */
+  .map-print-sheet .map-zone-parts {
+    grid-template-columns: minmax(145px, 1.45fr) repeat(4, minmax(0, 1fr)) !important;
+    width: 72% !important;
+    margin-left: 18% !important;
+  }
+
+  .map-print-sheet .map-zone-sub {
+    grid-template-columns: 90px repeat(7, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .map-print-sheet .map-zone-main {
+    grid-template-columns: 90px minmax(0, 1fr) !important;
+    width: 100% !important;
+  }
+
+  .map-print-sheet .map-main-row {
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+  }
+
+  .map-print-sheet .map-main-bottom .map-buffer-span {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .map-print-sheet .map-line-support {
+    grid-template-columns: 104px minmax(0, 1fr) !important;
+    width: 100% !important;
+  }
+
+  .map-print-sheet .map-line-support-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  /* Preserve the larger/readable print treatment while keeping height
+     comfortably inside the 8.5-inch Letter page. */
+  .map-print-sheet .map-document-title {
+    margin: 1px 0 3px !important;
+    font-size: 19px !important;
+  }
+
+  .map-print-sheet .map-statusbar {
+    margin-bottom: 4px !important;
+  }
+
+  .map-print-sheet .map-aisle,
+  .map-print-sheet .map-aisle-main {
+    height: 18px !important;
+  }
+
+  .map-print-sheet .map-zone-label,
+  .map-print-sheet .map-process {
+    min-height: 72px !important;
+  }
+
+  .map-print-sheet .map-main-top .map-process,
+  .map-print-sheet .map-main-bottom .map-process {
+    min-height: 84px !important;
+  }
+
+  .map-print-sheet .map-zone-label-main {
+    min-height: 168px !important;
+  }
+
+  .map-print-sheet .map-line-support-grid {
+    grid-auto-rows: minmax(46px, auto) !important;
+  }
+
+  .map-print-sheet .map-line-support-slot {
+    min-height: 46px !important;
+  }
+}
