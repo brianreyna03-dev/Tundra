@@ -331,6 +331,7 @@ function LineSupportSlot({
   onDrop,
   onDropTargetChange,
   onSetLineSupport,
+  onRenameLineSupportSlot,
 }) {
   const personId = segment?.lineSupport?.[slot.id] || null;
   const personName = personId ? nameFor(team, personId) : null;
@@ -341,6 +342,21 @@ function LineSupportSlot({
     movingPerson && movingPerson.role !== "tl" && !movingPerson.pto
   );
   const isDropTarget = dropTargetId === slot.id && canAccept;
+  const [editingLabel, setEditingLabel] = useState(false);
+  const [draftLabel, setDraftLabel] = useState(slot.label);
+
+  useEffect(() => {
+    if (!editingLabel) setDraftLabel(slot.label);
+  }, [slot.label, editingLabel]);
+
+  const saveLabel = () => {
+    const nextLabel = draftLabel.trim().replace(/\s+/g, " ");
+    if (nextLabel && nextLabel !== slot.label) {
+      onRenameLineSupportSlot?.(slot.id, nextLabel);
+    }
+    setDraftLabel(nextLabel || slot.label);
+    setEditingLabel(false);
+  };
 
   const placePerson = () => {
     if (!movingPerson || !canAccept) return;
@@ -399,7 +415,52 @@ function LineSupportSlot({
         placePerson();
       }}
     >
-      <span className="map-line-support-role">{slot.label}</span>
+      <div className="map-line-support-role-row">
+        {editingLabel ? (
+          <input
+            className="map-line-support-role-input"
+            value={draftLabel}
+            maxLength={48}
+            autoFocus
+            aria-label={`Rename ${slot.label}`}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            onDragStart={(event) => event.preventDefault()}
+            onChange={(event) => setDraftLabel(event.target.value)}
+            onBlur={saveLabel}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Enter") {
+                event.preventDefault();
+                saveLabel();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setDraftLabel(slot.label);
+                setEditingLabel(false);
+              }
+            }}
+          />
+        ) : (
+          <span className="map-line-support-role">{slot.label}</span>
+        )}
+
+        {!editingLabel && onRenameLineSupportSlot && !movingPerson && (
+          <button
+            type="button"
+            className="map-line-support-role-edit"
+            title={`Rename ${slot.label}`}
+            aria-label={`Rename ${slot.label}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              setDraftLabel(slot.label);
+              setEditingLabel(true);
+            }}
+          >
+            ✎
+          </button>
+        )}
+      </div>
 
       {personName ? (
         <div className="map-line-support-person">
@@ -645,8 +706,9 @@ export default function MapView({
   onAssign,
   onSetTraining,
   onSetLineSupport,
+  onRenameLineSupportSlot,
 }) {
-  const { stations, team, schedule } = data;
+  const { stations, team, schedule, lineSupportLabels = {} } = data;
 
   const [segmentKey, setSegmentKey] =
     useState("q1");
@@ -1524,10 +1586,16 @@ export default function MapView({
                 </div>
 
                 <div className="map-line-support-grid">
-                  {LINE_SUPPORT_SLOTS.map((slot) => (
+                  {LINE_SUPPORT_SLOTS.map((slot) => {
+                    const displaySlot = {
+                      ...slot,
+                      label: lineSupportLabels[slot.id] || slot.label,
+                    };
+
+                    return (
                     <LineSupportSlot
                       key={slot.id}
-                      slot={slot}
+                      slot={displaySlot}
                       segment={segment}
                       team={team}
                       movingPersonId={movingFloaterId}
@@ -1535,8 +1603,10 @@ export default function MapView({
                       onDrop={placeFloaterInLineSupport}
                       onDropTargetChange={setLineSupportDropTarget}
                       onSetLineSupport={onSetLineSupport}
+                      onRenameLineSupportSlot={onRenameLineSupportSlot}
                     />
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             </div>
