@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { nameFor, todayStr } from "../lib/util.js";
 import TeamLeaderStrip from "./TeamLeaderStrip.jsx";
 import AssignmentSelect from "./AssignmentSelect.jsx";
+import {
+  KICK_OUT_REPAIR_STATION,
+  LINE_SUPPORT_SLOTS,
+} from "../lib/floorMapConfig.js";
 
 const MAP_AREAS = {
   unit: { prefix: "st", count: 12 },
@@ -34,6 +38,13 @@ function cleanText(value) {
     .replace(/[_/]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isKickOutRepairStation(station) {
+  return (
+    station?.id === KICK_OUT_REPAIR_STATION.id ||
+    cleanText(station?.name).startsWith("kick out")
+  );
 }
 
 function areaForStation(station) {
@@ -117,6 +128,8 @@ function buildAutoLayout(stations) {
   const classified = [];
 
   stations.forEach((station) => {
+    if (isKickOutRepairStation(station)) return;
+
     const area = areaForStation(station);
 
     if (area) {
@@ -154,7 +167,7 @@ function buildAutoLayout(stations) {
   });
 
   const remaining = stations.filter(
-    (station) => !used.has(station.id)
+    (station) => !used.has(station.id) && !isKickOutRepairStation(station)
   );
 
   const fallbackOrder = [
@@ -309,6 +322,115 @@ function TrainingPairBox({
   );
 }
 
+function LineSupportSlot({
+  slot,
+  segment,
+  team,
+  movingPersonId,
+  dropTargetId,
+  onDrop,
+  onDropTargetChange,
+  onSetLineSupport,
+}) {
+  const personId = segment?.lineSupport?.[slot.id] || null;
+  const personName = personId ? nameFor(team, personId) : null;
+  const movingPerson = movingPersonId
+    ? team.find((person) => person.id === movingPersonId)
+    : null;
+  const canAccept = Boolean(
+    movingPerson && movingPerson.role !== "tl" && !movingPerson.pto
+  );
+  const isDropTarget = dropTargetId === slot.id && canAccept;
+
+  const placePerson = () => {
+    if (!movingPerson || !canAccept) return;
+    onDrop?.(slot, movingPerson);
+  };
+
+  return (
+    <div
+      className={`map-line-support-slot map-line-support-${slot.kind}${
+        personName ? " has-person" : ""
+      }${movingPerson ? " is-drop-option" : ""}${
+        isDropTarget ? " is-drop-target" : ""
+      }`}
+      role={movingPerson ? "button" : undefined}
+      tabIndex={movingPerson ? 0 : undefined}
+      aria-label={
+        movingPerson
+          ? `Assign ${movingPerson.name} to ${slot.label} line support`
+          : `${slot.label}${personName ? `, ${personName}` : ", unassigned"}`
+      }
+      onClick={(event) => {
+        if (!movingPerson) return;
+        event.stopPropagation();
+        placePerson();
+      }}
+      onKeyDown={(event) => {
+        if (!movingPerson || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        placePerson();
+      }}
+      onDragEnter={(event) => {
+        if (!movingPerson) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onDropTargetChange?.(slot.id);
+      }}
+      onDragOver={(event) => {
+        if (!movingPerson) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "move";
+        onDropTargetChange?.(slot.id);
+      }}
+      onDragLeave={(event) => {
+        event.stopPropagation();
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          onDropTargetChange?.(null);
+        }
+      }}
+      onDrop={(event) => {
+        if (!movingPerson) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onDropTargetChange?.(null);
+        placePerson();
+      }}
+    >
+      <span className="map-line-support-role">{slot.label}</span>
+
+      {personName ? (
+        <div className="map-line-support-person">
+          <span className="map-line-support-avatar" aria-hidden="true">
+            {initialsOf(personName)}
+          </span>
+          <strong>{personName}</strong>
+          {onSetLineSupport && (
+            <button
+              type="button"
+              className="map-line-support-remove"
+              title={`Remove ${personName} from ${slot.label}`}
+              aria-label={`Remove ${personName} from ${slot.label}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSetLineSupport(segment.key, slot.id, null);
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ) : (
+        <span className="map-line-support-empty">
+          {movingPerson ? `Drop ${movingPerson.name} here` : "Drop floater here"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ProcessCell({
   code,
   station,
@@ -328,6 +450,7 @@ function ProcessCell({
   onSetTraining,
   kind = "station",
   zone,
+  hideProcessName = false,
 }) {
   const zoneClass = zone ? ` map-zone-${zone}` : "";
 
@@ -470,7 +593,9 @@ function ProcessCell({
 
       <div className="map-process-topline">
         <span className="map-code">{code}</span>
-        <span className="map-process-name">{station.name}</span>
+        {!hideProcessName && (
+          <span className="map-process-name">{station.name}</span>
+        )}
       </div>
 
       {editing ? (
@@ -519,6 +644,7 @@ export default function MapView({
   onStartManual,
   onAssign,
   onSetTraining,
+  onSetLineSupport,
 }) {
   const { stations, team, schedule } = data;
 
@@ -539,6 +665,9 @@ export default function MapView({
 
 
   const [trainingDropTargetStationId, setTrainingDropTargetStationId] =
+    useState(null);
+
+  const [lineSupportDropTargetId, setLineSupportDropTargetId] =
     useState(null);
 
   const [placementMessage, setPlacementMessage] =
@@ -595,6 +724,10 @@ export default function MapView({
   const stationFor = (slotKey) =>
     stationById.get(autoLayout[slotKey]);
 
+  const kickOutStation =
+    stationById.get(KICK_OUT_REPAIR_STATION.id) ||
+    stations.find((station) => cleanText(station.name).startsWith("kick out"));
+
   /* Team Leader Zone 2: PM 3 + PM 4. Team Leader Zone 3: PM 1 + PM 2. */
   const pmSlots = [4, 3, 2, 1].map(
     (number) => ({
@@ -625,7 +758,7 @@ export default function MapView({
       number <= 7 ? "zone2a" : "zone2b",
   }));
 
-  /* Team Leader Zone 1: ST 3, ST 2, ST 1, ST 12 + Kick Out. */
+  /* Team Leader Zone 1: ST 3, ST 2, ST 1, ST 12 + Kick Out & Repair. */
   const mainBottom = [3, 2, 1, 12].map(
     (number) => ({
       code: `ST ${number}`,
@@ -637,6 +770,7 @@ export default function MapView({
   const mappedIds = new Set(
     Object.values(autoLayout).filter(Boolean)
   );
+  if (kickOutStation) mappedIds.add(kickOutStation.id);
 
   const additional = stations.filter(
     (station) => !mappedIds.has(station.id)
@@ -659,6 +793,10 @@ export default function MapView({
       )
     : 0;
 
+  const lineSupportCount = segment
+    ? Object.values(segment.lineSupport || {}).filter(Boolean).length
+    : 0;
+
   const movingFloaterId = draggedFloaterId || selectedFloaterId;
   const movingFloater = movingFloaterId
     ? team.find((person) => person.id === movingFloaterId)
@@ -672,6 +810,7 @@ export default function MapView({
     setSelectedFloaterId(null);
     setCoverageDropTarget(null);
     setTrainingDropTargetStationId(null);
+    setLineSupportDropTargetId(null);
     setPlacementMessage(`${person.name} moved to ${station.name}.`);
   };
 
@@ -679,6 +818,7 @@ export default function MapView({
     if (!station || !person) return;
     setCoverageDropTarget(null);
     setTrainingDropTargetStationId(null);
+    setLineSupportDropTargetId(null);
     setPlacementMessage(
       `${person.name} is not certified for ${station.name}.`
     );
@@ -693,22 +833,44 @@ export default function MapView({
     setSelectedFloaterId(null);
     setCoverageDropTarget(null);
     setTrainingDropTargetStationId(null);
+    setLineSupportDropTargetId(null);
     setPlacementMessage(`${person.name} is now training at ${station.name}.`);
+  };
+
+  const placeFloaterInLineSupport = (slot, person) => {
+    if (!segment || !slot || !person) return;
+
+    onSetLineSupport?.(segment.key, slot.id, person.id);
+    setDraggedFloaterId(null);
+    setSelectedFloaterId(null);
+    setCoverageDropTarget(null);
+    setTrainingDropTargetStationId(null);
+    setLineSupportDropTargetId(null);
+    setPlacementMessage(`${person.name} moved to Line Support · ${slot.label}.`);
   };
 
   const setCoverageDropTarget = (stationId) => {
     setDropTargetStationId(stationId);
     if (stationId) {
-        setTrainingDropTargetStationId(null);
+      setTrainingDropTargetStationId(null);
+      setLineSupportDropTargetId(null);
     }
   };
-
 
   const setTrainingDropTarget = (stationId) => {
     setTrainingDropTargetStationId(stationId);
     if (stationId) {
       setCoverageDropTarget(null);
-      }
+      setLineSupportDropTargetId(null);
+    }
+  };
+
+  const setLineSupportDropTarget = (slotId) => {
+    setLineSupportDropTargetId(slotId);
+    if (slotId) {
+      setCoverageDropTarget(null);
+      setTrainingDropTargetStationId(null);
+    }
   };
 
   const processProps = {
@@ -733,6 +895,7 @@ export default function MapView({
     setSelectedFloaterId(null);
     setCoverageDropTarget(null);
     setTrainingDropTargetStationId(null);
+    setLineSupportDropTargetId(null);
     setPlacementMessage("");
   }, [segment?.key]);
 
@@ -1050,10 +1213,10 @@ export default function MapView({
               </strong>
 
               <span>
-                Drag a floater onto a station body for production coverage, or onto
-                the Trainee area to train them at any station. Production coverage
-                requires certification; training does not. The assigned operator is
-                automatically the trainer.
+                Drag a floater onto a station body for production coverage, onto
+                the Trainee area to train, or into a Line Support role. Production
+                coverage requires certification; training and Line Support do not.
+                The assigned operator is automatically the trainer.
               </span>
             </div>
           )}
@@ -1091,7 +1254,7 @@ export default function MapView({
               <strong>
                 {filled}/{stations.length}{" "}
                 processes staffed · {trainingCount}{" "}
-                training
+                training · {lineSupportCount} line support
               </strong>
             </div>
 
@@ -1343,12 +1506,37 @@ export default function MapView({
 
                     <div className="map-buffer-span">
                       <ProcessCell
-                        code="Kick Out"
-                        kind="buffer"
+                        code="Kick Out & Repair"
+                        station={kickOutStation}
                         zone="zone1"
+                        hideProcessName
+                        {...processProps}
                       />
                     </div>
                   </div>
+                </div>
+              </section>
+
+              <section className="map-line-support" aria-label="Line Support assignments">
+                <div className="map-line-support-label">
+                  <span>Line Support</span>
+                  <small>Gate checks · spotters · scrap</small>
+                </div>
+
+                <div className="map-line-support-grid">
+                  {LINE_SUPPORT_SLOTS.map((slot) => (
+                    <LineSupportSlot
+                      key={slot.id}
+                      slot={slot}
+                      segment={segment}
+                      team={team}
+                      movingPersonId={movingFloaterId}
+                      dropTargetId={lineSupportDropTargetId}
+                      onDrop={placeFloaterInLineSupport}
+                      onDropTargetChange={setLineSupportDropTarget}
+                      onSetLineSupport={onSetLineSupport}
+                    />
+                  ))}
                 </div>
               </section>
             </div>
@@ -1369,9 +1557,9 @@ export default function MapView({
               <div className="map-floater-help">
                 <span className="map-drag-icon" aria-hidden="true">↗</span>
                 <span>
-                  Drop on a station body for certified production coverage, or
-                  drop on the Trainee area to train at any station. The assigned
-                  operator is automatically the trainer.
+                  Drop on a station body for certified production coverage, on the
+                  Trainee area to train at any station, or on a Line Support role.
+                  The assigned operator is automatically the trainer.
                 </span>
               </div>
 
@@ -1390,7 +1578,7 @@ export default function MapView({
                         type="button"
                         draggable
                         aria-pressed={selected}
-                        title={`Drag ${personName} to work or train`}
+                        title={`Drag ${personName} to work, train, or Line Support`}
                         onClick={() => {
                           setDraggedFloaterId(null);
                           setCoverageDropTarget(null);
@@ -1407,7 +1595,7 @@ export default function MapView({
                           setSelectedFloaterId(null);
                           setDraggedFloaterId(personId);
                           setPlacementMessage(
-                            `Moving ${personName}. Drop on a station body for coverage or the Trainee area to train.`
+                            `Moving ${personName}. Drop on a station, Trainee area, or Line Support role.`
                           );
                           event.dataTransfer.effectAllowed = "move";
                           event.dataTransfer.setData("text/plain", personId);
@@ -1415,7 +1603,8 @@ export default function MapView({
                         onDragEnd={() => {
                           setDraggedFloaterId(null);
                           setCoverageDropTarget(null);
-                                                setTrainingDropTargetStationId(null);
+                          setTrainingDropTargetStationId(null);
+                          setLineSupportDropTargetId(null);
                         }}
                       >
                         <span className="map-floater-grip" aria-hidden="true">
@@ -1445,7 +1634,7 @@ export default function MapView({
                 {placementMessage ||
                   (movingFloater
                     ? `${movingFloater.name} is ready to place.`
-                    : "Drag a floater to a station body for coverage or the Trainee area to train.")}
+                    : "Drag a floater to a station, Trainee area, or Line Support role.")}
               </div>
             </div>
 
